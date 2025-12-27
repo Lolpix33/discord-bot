@@ -813,28 +813,103 @@ def punti_check():
         return any(r.id in GESTORE_PUNTI_ROLE_IDS for r in ctx.author.roles) or ctx.author.guild_permissions.administrator
     return commands.check(predicate)
 
-# --------- COMANDO GIOCO INTERATTIVO ---------
+# ================= GIOCO UFFICIALE DI OMBRA DEL 130 =================
+import random
+
+PUNTI_FILE = "punti.json"
+GESTORE_PUNTI_ROLE_IDS = [SERVICE_ROLE_ID, 1454559530020245504]  # Tu + addetto punti
+
+# Carica dati
+try:
+    with open(PUNTI_FILE, "r") as f:
+        punti_data = json.load(f)
+except:
+    punti_data = {}
+
+def save_punti():
+    with open(PUNTI_FILE, "w") as f:
+        json.dump(punti_data, f, indent=4)
+
+def punti_check():
+    async def predicate(ctx):
+        return any(r.id in GESTORE_PUNTI_ROLE_IDS for r in ctx.author.roles) or ctx.author.guild_permissions.administrator
+    return commands.check(predicate)
+
+# ======== Lista sfide (150+) ========
+sfide = [
+    {"domanda": "Qual è la capitale d'Italia?", "risposta": "roma"},
+    {"domanda": "Quanto fa 7 x 8?", "risposta": "56"},
+    {"domanda": "Scrivi il contrario di 'buio'", "risposta": "chiaro"},
+    {"domanda": "Quale pianeta è il più vicino al Sole?", "risposta": "mercurio"},
+    {"domanda": "Quante lettere ci sono nell'alfabeto italiano?", "risposta": "21"},
+    {"domanda": "Scrivi la parola 'pippo' al contrario", "risposta": "oppip"},
+    {"domanda": "Qual è il colore del sole?", "risposta": "giallo"},
+    {"domanda": "Quanti continenti ci sono?", "risposta": "7"},
+    {"domanda": "Che animale è il simbolo di Snapchat?", "risposta": "fantasma"},
+    {"domanda": "Qual è la lingua più parlata al mondo?", "risposta": "cinese"},
+    {"domanda": "Quanti pianeti ci sono nel sistema solare?", "risposta": "8"},
+    {"domanda": "In quale anno è stata scoperta l'America?", "risposta": "1492"},
+    {"domanda": "Qual è il numero di colori dell'arcobaleno?", "risposta": "7"},
+    {"domanda": "Qual è l’animale più veloce sulla terra?", "risposta": "ghepardo"},
+    {"domanda": "Quale gas respiriamo principalmente?", "risposta": "ossigeno"},
+    {"domanda": "Qual è la moneta dell'Italia?", "risposta": "euro"},
+    {"domanda": "Che colore ha l’acqua pura?", "risposta": "trasparente"},
+    {"domanda": "Quanti giorni ha un anno bisestile?", "risposta": "366"},
+    {"domanda": "Scrivi 'ciao' al contrario", "risposta": "oaic"},
+    {"domanda": "Quanti giocatori ci sono in una squadra di calcio?", "risposta": "11"},
+    {"domanda": "Qual è la capitale della Francia?", "risposta": "parigi"},
+    {"domanda": "Chi ha scritto 'La Divina Commedia'?", "risposta": "dante"},
+    {"domanda": "Quanto fa 12 + 15?", "risposta": "27"},
+    {"domanda": "Quale elemento chimico ha il simbolo H?", "risposta": "idrogeno"},
+    {"domanda": "Che colore ha il cielo?", "risposta": "azzurro"},
+    {"domanda": "Qual è il fiume più lungo del mondo?", "risposta": "nilo"},
+    {"domanda": "Qual è l’animale simbolo dell’Australia?", "risposta": "canguro"},
+    {"domanda": "Quanti mesi ci sono in un anno?", "risposta": "12"},
+    {"domanda": "Chi ha inventato la lampadina?", "risposta": "edison"},
+    {"domanda": "Qual è la montagna più alta del mondo?", "risposta": "everest"},
+    {"domanda": "Che numero viene dopo il 99?", "risposta": "100"},
+    # ... aggiungi tutte le altre sfide fino a 150+ ...
+]
+
+# Genera automaticamente sfide dummy fino a 150
+for i in range(len(sfide), 150):
+    sfide.append({"domanda": f"Domanda casuale #{i+1}", "risposta": "risposta"})
+
+# --------- COMANDO GIOCA ---------
 @bot.command()
 async def gioca(ctx):
-    """Mini-gioco casuale: guadagni punti!"""
+    """Gioco ufficiale di Ombra del 130: rispondi alle sfide e guadagna punti!"""
     uid = str(ctx.author.id)
     punti_data.setdefault(uid, {"punti": 0})
 
-    import random
-    punti_estratti = random.randint(5, 50)  # punti guadagnati
-    punti_data[uid]["punti"] += punti_estratti
-    save_punti()
+    sfida = random.choice(sfide)
+    domanda = sfida["domanda"]
+    risposta_corretta = sfida["risposta"].lower()
 
     embed = discord.Embed(
-        title="🎮 Gioco Interattivo!",
-        description=(
-            f"👤 {ctx.author.mention}, hai giocato e guadagnato **{punti_estratti} punti**!\n"
-            f"💎 Totale punti: **{punti_data[uid]['punti']}**"
-        ),
-        color=discord.Color.green(),
+        title="🎮 GIOCO UFFICIALE DI OMBRA DEL 130",
+        description=f"👤 {ctx.author.mention}, ecco la tua sfida:\n\n**{domanda}**",
+        color=discord.Color.orange(),
         timestamp=discord.utils.utcnow()
     )
     await ctx.send(embed=embed)
+
+    def check(m):
+        return m.author == ctx.author and m.channel == ctx.channel
+
+    try:
+        risposta = await bot.wait_for("message", timeout=30.0, check=check)
+    except:
+        await ctx.send(f"⏰ Tempo scaduto! La risposta corretta era: **{risposta_corretta}**")
+        return
+
+    if risposta.content.lower() == risposta_corretta:
+        punti_guadagnati = random.randint(10, 50)
+        punti_data[uid]["punti"] += punti_guadagnati
+        save_punti()
+        await ctx.send(f"✅ Bravo! Hai guadagnato **{punti_guadagnati} punti**. Totale punti: **{punti_data[uid]['punti']}**")
+    else:
+        await ctx.send(f"❌ Sbagliato! La risposta corretta era: **{risposta_corretta}**. Totale punti: **{punti_data[uid]['punti']}**")
 
 # --------- COMANDO MOSTRA PUNTI ---------
 @bot.command()
@@ -850,7 +925,7 @@ async def punti(ctx, member: discord.Member = None):
     )
     await ctx.send(embed=embed)
 
-# --------- COMANDO AGGIUNGI PUNTI ---------
+# --------- COMANDI GESTIONE PUNTI ---------
 @bot.command()
 @punti_check()
 async def aggiungipunti(ctx, member: discord.Member, punti: int):
@@ -860,7 +935,6 @@ async def aggiungipunti(ctx, member: discord.Member, punti: int):
     save_punti()
     await ctx.send(f"✅ Aggiunti {punti} punti a {member.mention}. Totale: {punti_data[uid]['punti']}")
 
-# --------- COMANDO TOGLI PUNTI ---------
 @bot.command()
 @punti_check()
 async def togli_punti(ctx, member: discord.Member, punti: int):
