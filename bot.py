@@ -844,7 +844,7 @@ from discord.ext import commands
 PUNTI_FILE = "punti.json"
 GESTORE_PUNTI_ROLE_IDS = [SERVICE_ROLE_ID, 1454559530020245504]  # Tu + addetto punti
 GIOCO_CHANNEL_ID = 1454586206846455848
-GIOCO_INVITO = "https://discord.gg/PK78wNzzy4"
+GIOCO_INVITO = "ENTRA QUA PER GIOCARE #🎮-minigiochi"
 
 # ================= CARICAMENTO DATI =================
 try:
