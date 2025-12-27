@@ -391,9 +391,9 @@ class ServizioView(discord.ui.View):
     async def servizio_off(self, interaction: discord.Interaction, button: discord.ui.Button):
         uid = str(interaction.user.id)
         now = time.time()
-        staff_channel = bot.get_channel(SERVICE_CHANNEL_ID)   # Canale log servizio
+        staff_channel = bot.get_channel(SERVICE_CHANNEL_ID)
 
-        DIRETTORE_ROLE_ID = 1426308704759976108  # ID ruolo Direttore
+        DIRETTORE_ROLE_ID = 1426308704759976108
         durata = 0
 
         if uid not in staff_data or not staff_data[uid]["inizio"]:
@@ -401,57 +401,58 @@ class ServizioView(discord.ui.View):
                 "⚠️ Non sei in servizio", ephemeral=True
             )
 
-    # Calcola durata sessione solo se non in pausa
-    durata = now - staff_data[uid]["inizio"] if not staff_data[uid].get("pausa") else 0
-    staff_data[uid]["totale"] += durata
-    staff_data[uid]["inizio"] = None
-    staff_data[uid]["pausa"] = False
-    save_data()
+        # Calcola durata sessione solo se non in pausa
+        durata = now - staff_data[uid]["inizio"] if not staff_data[uid].get("pausa") else 0
+        staff_data[uid]["totale"] += durata
+        staff_data[uid]["inizio"] = None
+        staff_data[uid]["pausa"] = False
+        save_data()
 
-    rank = get_rank(staff_data[uid]["totale"])
+        rank = get_rank(staff_data[uid]["totale"])
 
-    # Embed visibile allo staff
-    embed_staff = discord.Embed(
-        title="🔴 USCITA DAL SERVIZIO",
-        description=f"👮 {interaction.user.mention} è uscito dal servizio",
-        color=discord.Color.red(),
-        timestamp=discord.utils.utcnow()
-    )
-    if staff_channel:
-        await staff_channel.send(embed=embed_staff)
+        embed_staff = discord.Embed(
+            title="🔴 USCITA DAL SERVIZIO",
+            description=f"👮 {interaction.user.mention} è uscito dal servizio",
+            color=discord.Color.red(),
+            timestamp=discord.utils.utcnow()
+        )
 
-    # Embed dettagliato per owner e direttori
-    embed_owner = discord.Embed(
-        title=f"🔴 {interaction.user.display_name} è uscito dal servizio",
-        description=(
-            f"👮 Staff: {interaction.user.mention}\n"
-            f"⏱ Durata sessione: **{format_time(durata)}**\n"
-            f"⏱ Ore totali: **{format_time(staff_data[uid]['totale'])}**\n"
-            f"🏅 Rank attuale: {rank}"
-        ),
-        color=discord.Color.red(),
-        timestamp=discord.utils.utcnow()
-    )
+        if staff_channel:
+            await staff_channel.send(embed=embed_staff)
 
-    # DM all'owner
-    try:
-        await interaction.guild.owner.send(embed=embed_owner)
-    except:
-        pass
+        # Embed dettagliato per owner e direttori
+        embed_owner = discord.Embed(
+            title=f"🔴 {interaction.user.display_name} è uscito dal servizio",
+            description=(
+                f"👮 Staff: {interaction.user.mention}\n"
+                f"⏱ Durata sessione: **{format_time(durata)}**\n"
+                f"⏱ Ore totali: **{format_time(staff_data[uid]['totale'])}**\n"
+                f"🏅 Rank attuale: {rank}"
+            ),
+            color=discord.Color.red(),
+            timestamp=discord.utils.utcnow()
+        )
 
-    # DM a tutti i membri con ruolo Direttore
-    direttore_role = interaction.guild.get_role(DIRETTORE_ROLE_ID)
-    if direttore_role:
-        for membro in direttore_role.members:
-            try:
-                await membro.send(embed=embed_owner)
-            except:
-                pass
+        # DM all'owner
+        try:
+            await interaction.guild.owner.send(embed=embed_owner)
+        except:
+            pass
 
-    # Messaggio ephemeral alla persona
-    await interaction.response.send_message(
-        "🔴 Sei uscito dal servizio!", ephemeral=True
-    )
+        # DM a tutti i membri con ruolo Direttore
+        direttore_role = interaction.guild.get_role(DIRETTORE_ROLE_ID)
+        if direttore_role:
+            for membro in direttore_role.members:
+                try:
+                    await membro.send(embed=embed_owner)
+                except:
+                    pass
+
+        # Messaggio ephemeral alla persona
+        await interaction.response.send_message(
+            "🔴 Sei uscito dal servizio!", ephemeral=True
+        )
+
 
 
 
