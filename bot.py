@@ -836,10 +836,6 @@ def punti_check():
     return commands.check(predicate)
 
 # ======== Lista sfide (150+) ========
-import discord
-from discord.ext import commands
-import random
-import json
 
 bot = commands.Bot(command_prefix="!")
 
