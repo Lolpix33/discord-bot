@@ -793,5 +793,82 @@ async def on_message(message):
     # FONDAMENTALE: permette ai comandi di funzionare
     await bot.process_commands(message)
 
+# ================= GIOCO PUNTI =================
+PUNTI_FILE = "punti.json"
+GESTORE_PUNTI_ROLE_IDS = [SERVICE_ROLE_ID, 1454559530020245504]  # Tu + addetto punti
+
+# Carica dati
+try:
+    with open(PUNTI_FILE, "r") as f:
+        punti_data = json.load(f)
+except:
+    punti_data = {}
+
+def save_punti():
+    with open(PUNTI_FILE, "w") as f:
+        json.dump(punti_data, f, indent=4)
+
+def punti_check():
+    async def predicate(ctx):
+        return any(r.id in GESTORE_PUNTI_ROLE_IDS for r in ctx.author.roles) or ctx.author.guild_permissions.administrator
+    return commands.check(predicate)
+
+# --------- COMANDO GIOCO INTERATTIVO ---------
+@bot.command()
+async def gioca(ctx):
+    """Mini-gioco casuale: guadagni punti!"""
+    uid = str(ctx.author.id)
+    punti_data.setdefault(uid, {"punti": 0})
+
+    import random
+    punti_estratti = random.randint(5, 50)  # punti guadagnati
+    punti_data[uid]["punti"] += punti_estratti
+    save_punti()
+
+    embed = discord.Embed(
+        title="🎮 Gioco Interattivo!",
+        description=(
+            f"👤 {ctx.author.mention}, hai giocato e guadagnato **{punti_estratti} punti**!\n"
+            f"💎 Totale punti: **{punti_data[uid]['punti']}**"
+        ),
+        color=discord.Color.green(),
+        timestamp=discord.utils.utcnow()
+    )
+    await ctx.send(embed=embed)
+
+# --------- COMANDO MOSTRA PUNTI ---------
+@bot.command()
+async def punti(ctx, member: discord.Member = None):
+    member = member or ctx.author
+    uid = str(member.id)
+    tot = punti_data.get(uid, {}).get("punti", 0)
+    embed = discord.Embed(
+        title=f"💎 Punti di {member.display_name}",
+        description=f"🏆 Totale punti: **{tot}**",
+        color=discord.Color.blue(),
+        timestamp=discord.utils.utcnow()
+    )
+    await ctx.send(embed=embed)
+
+# --------- COMANDO AGGIUNGI PUNTI ---------
+@bot.command()
+@punti_check()
+async def aggiungipunti(ctx, member: discord.Member, punti: int):
+    uid = str(member.id)
+    punti_data.setdefault(uid, {"punti": 0})
+    punti_data[uid]["punti"] += punti
+    save_punti()
+    await ctx.send(f"✅ Aggiunti {punti} punti a {member.mention}. Totale: {punti_data[uid]['punti']}")
+
+# --------- COMANDO TOGLI PUNTI ---------
+@bot.command()
+@punti_check()
+async def togli_punti(ctx, member: discord.Member, punti: int):
+    uid = str(member.id)
+    punti_data.setdefault(uid, {"punti": 0})
+    punti_data[uid]["punti"] = max(0, punti_data[uid]["punti"] - punti)
+    save_punti()
+    await ctx.send(f"⛔ Tolti {punti} punti a {member.mention}. Totale: {punti_data[uid]['punti']}")
+
 # ================= AVVIO =================
 bot.run(TOKEN)
