@@ -837,11 +837,9 @@ def punti_check():
 
 # ======== Lista sfide (150+) ========
 
-bot = commands.Bot(command_prefix="!")
-
 # ================= GIOCO PUNTI =================
 PUNTI_FILE = "punti.json"
-GESTORE_PUNTI_ROLE_IDS = [123456789012345678, 1454559530020245504]  # sostituisci con SERVICE_ROLE_ID + addetto punti
+GESTORE_PUNTI_ROLE_IDS = [SERVICE_ROLE_ID, 1454559530020245504]  # sostituisci con SERVICE_ROLE_ID + addetto punti
 
 # Carica dati punti
 try:
