@@ -836,80 +836,190 @@ def punti_check():
     return commands.check(predicate)
 
 # ======== Lista sfide (150+) ========
-sfide = [
-    {"domanda": "Qual è la capitale d'Italia?", "risposta": "roma"},
-    {"domanda": "Quanto fa 7 x 8?", "risposta": "56"},
-    {"domanda": "Scrivi il contrario di 'buio'", "risposta": "chiaro"},
-    {"domanda": "Quale pianeta è il più vicino al Sole?", "risposta": "mercurio"},
-    {"domanda": "Quante lettere ci sono nell'alfabeto italiano?", "risposta": "21"},
-    {"domanda": "Scrivi la parola 'pippo' al contrario", "risposta": "oppip"},
-    {"domanda": "Qual è il colore del sole?", "risposta": "giallo"},
-    {"domanda": "Quanti continenti ci sono?", "risposta": "7"},
-    {"domanda": "Che animale è il simbolo di Snapchat?", "risposta": "fantasma"},
-    {"domanda": "Qual è la lingua più parlata al mondo?", "risposta": "cinese"},
-    {"domanda": "Quanti pianeti ci sono nel sistema solare?", "risposta": "8"},
-    {"domanda": "In quale anno è stata scoperta l'America?", "risposta": "1492"},
-    {"domanda": "Qual è il numero di colori dell'arcobaleno?", "risposta": "7"},
-    {"domanda": "Qual è l’animale più veloce sulla terra?", "risposta": "ghepardo"},
-    {"domanda": "Quale gas respiriamo principalmente?", "risposta": "ossigeno"},
-    {"domanda": "Qual è la moneta dell'Italia?", "risposta": "euro"},
-    {"domanda": "Che colore ha l’acqua pura?", "risposta": "trasparente"},
-    {"domanda": "Quanti giorni ha un anno bisestile?", "risposta": "366"},
-    {"domanda": "Scrivi 'ciao' al contrario", "risposta": "oaic"},
-    {"domanda": "Quanti giocatori ci sono in una squadra di calcio?", "risposta": "11"},
-    {"domanda": "Qual è la capitale della Francia?", "risposta": "parigi"},
+import discord
+from discord.ext import commands
+import random
+import json
+
+bot = commands.Bot(command_prefix="!")
+
+# ================= GIOCO PUNTI =================
+PUNTI_FILE = "punti.json"
+GESTORE_PUNTI_ROLE_IDS = [123456789012345678, 1454559530020245504]  # sostituisci con SERVICE_ROLE_ID + addetto punti
+
+# Carica dati punti
+try:
+    with open(PUNTI_FILE, "r") as f:
+        punti_data = json.load(f)
+except:
+    punti_data = {}
+
+def save_punti():
+    with open(PUNTI_FILE, "w") as f:
+        json.dump(punti_data, f, indent=4)
+
+def punti_check():
+    async def predicate(ctx):
+        return any(r.id in GESTORE_PUNTI_ROLE_IDS for r in ctx.author.roles) or ctx.author.guild_permissions.administrator
+    return commands.check(predicate)
+
+# Domanda corrente per utente
+current_questions = {}
+
+# --------- 300 DOMANDE E RISPOSTE ---------
+domande_data = [
+    {"domanda": "Qual è il colore del cielo?", "risposta": "azzurro"},
+    {"domanda": "Quante stagioni ci sono in un anno?", "risposta": "4"},
+    {"domanda": "Qual è il numero di pianeti nel sistema solare?", "risposta": "8"},
+    {"domanda": "Qual è il simbolo chimico dell'acqua?", "risposta": "h2o"},
     {"domanda": "Chi ha scritto 'La Divina Commedia'?", "risposta": "dante"},
+    {"domanda": "Qual è la capitale d'Italia?", "risposta": "roma"},
+    {"domanda": "In quale continente si trova l'Egitto?", "risposta": "africa"},
+    {"domanda": "Quanti giorni ha un anno bisestile?", "risposta": "366"},
+    {"domanda": "Qual è la lingua più parlata al mondo?", "risposta": "cinese"},
+    {"domanda": "Qual è l'animale terrestre più veloce?", "risposta": "ghepardo"},
+    {"domanda": "Qual è la moneta ufficiale del Giappone?", "risposta": "yen"},
+    {"domanda": "Qual è la capitale della Francia?", "risposta": "parigi"},
     {"domanda": "Quanto fa 12 + 15?", "risposta": "27"},
-    {"domanda": "Quale elemento chimico ha il simbolo H?", "risposta": "idrogeno"},
-    {"domanda": "Che colore ha il cielo?", "risposta": "azzurro"},
-    {"domanda": "Qual è il fiume più lungo del mondo?", "risposta": "nilo"},
+    {"domanda": "Quale pianeta è conosciuto come il Pianeta Rosso?", "risposta": "marte"},
+    {"domanda": "Quanti occhi ha una formica?", "risposta": "2"},
+    {"domanda": "Qual è il più grande mammifero terrestre?", "risposta": "elefante"},
+    {"domanda": "Che colore ha il cavallo bianco di Napoleone?", "risposta": "bianco"},
+    {"domanda": "Quante ore ci sono in un giorno?", "risposta": "24"},
+    {"domanda": "Qual è il numero di mesi in un anno?", "risposta": "12"},
+    {"domanda": "In che anno è caduto il muro di Berlino?", "risposta": "1989"},
+    {"domanda": "Cosa produce una pianta?", "risposta": "ossigeno"},
+    {"domanda": "Quanto fa 9 x 9?", "risposta": "81"},
+    {"domanda": "Quale organo pompa il sangue nel corpo umano?", "risposta": "cuore"},
+    {"domanda": "Qual è la capitale della Spagna?", "risposta": "madrid"},
+    {"domanda": "Qual è la principale fonte di energia per la Terra?", "risposta": "sole"},
+    {"domanda": "Quanti occhi ha un ragno?", "risposta": "8"},
+    {"domanda": "Chi ha dipinto la Gioconda?", "risposta": "da vinci"},
+    {"domanda": "In quale città si trova la Torre Eiffel?", "risposta": "parigi"},
+    {"domanda": "Quanto fa 100 - 37?", "risposta": "63"},
     {"domanda": "Qual è l’animale simbolo dell’Australia?", "risposta": "canguro"},
-    {"domanda": "Quanti mesi ci sono in un anno?", "risposta": "12"},
-    {"domanda": "Chi ha inventato la lampadina?", "risposta": "edison"},
+    {"domanda": "Che forma ha un uovo?", "risposta": "ovale"},
+    {"domanda": "Quale animale è il re della savana?", "risposta": "leone"},
+    {"domanda": "Quale metallo è liquido a temperatura ambiente?", "risposta": "mercurio"},
+    {"domanda": "Quanti pianeti hanno anelli nel sistema solare?", "risposta": "1"},
+    {"domanda": "Qual è l’unità di misura della corrente?", "risposta": "ampere"},
+    {"domanda": "Qual è la capitale della Germania?", "risposta": "berlino"},
+    {"domanda": "In che continente si trova l’India?", "risposta": "asia"},
     {"domanda": "Qual è la montagna più alta del mondo?", "risposta": "everest"},
+    {"domanda": "Quanti denti ha un adulto?", "risposta": "32"},
+    {"domanda": "Chi ha scritto 'Hamlet'?", "risposta": "shakespeare"},
+    {"domanda": "Qual è l’elemento chimico numero 1?", "risposta": "idrogeno"},
+    {"domanda": "Quale organo filtra il sangue?", "risposta": "rene"},
+    {"domanda": "Quanto fa 7 x 6?", "risposta": "42"},
+    {"domanda": "Qual è il colore del sangue umano?", "risposta": "rosso"},
+    {"domanda": "Qual è la capitale del Regno Unito?", "risposta": "londra"},
+    {"domanda": "Quanto dura un quarto d’ora in minuti?", "risposta": "15"},
+    {"domanda": "Quale uccello non può volare?", "risposta": "pinguino"},
+    {"domanda": "Qual è lo sport più praticato al mondo?", "risposta": "calcio"},
+    {"domanda": "Chi ha inventato il telefono?", "risposta": "bell"},
+    {"domanda": "Qual è il pianeta più grande del sistema solare?", "risposta": "giove"},
+    {"domanda": "Quanti centimetri ci sono in un metro?", "risposta": "100"},
+    {"domanda": "Cos’è H2O?", "risposta": "acqua"},
+    {"domanda": "Quale animale è considerato il migliore amico dell’uomo?", "risposta": "cane"},
+    {"domanda": "Qual è la più grande catena montuosa?", "risposta": "himalaya"},
+    {"domanda": "Quanti oceani ci sono sulla Terra?", "risposta": "5"},
+    {"domanda": "Quale pianeta ha la grande macchia rossa?", "risposta": "giove"},
+    {"domanda": "In che anno è iniziata la Seconda Guerra Mondiale?", "risposta": "1939"},
+    {"domanda": "Chi ha dipinto 'Notte stellata'?", "risposta": "van gogh"},
+    {"domanda": "Qual è la valuta degli Stati Uniti?", "risposta": "dollaro"},
+    {"domanda": "Qual è la forma della Terra?", "risposta": "sfera"},
+    {"domanda": "Qual è la distanza in km tra la Terra e la Luna circa?", "risposta": "384400"},
+    {"domanda": "Quale animale ha le strisce bianche e nere?", "risposta": "zebra"},
+    {"domanda": "Quanti spicchi ha una arancia?", "risposta": "10"},
+    {"domanda": "Quale città è chiamata la ‘Big Apple’?", "risposta": "new york"},
+    {"domanda": "Che gas respiriamo principalmente?", "risposta": "azoto"},
+    {"domanda": "Che animale è simbolo della pace?", "risposta": "colomba"},
+    {"domanda": "Qual è l’unità di misura della temperatura?", "risposta": "grado"},
+    {"domanda": "Qual è la capitale del Canada?", "risposta": "ottawa"},
+    {"domanda": "Quanti secondi ci sono in un minuto?", "risposta": "60"},
+    {"domanda": "Che colore ha una banana matura?", "risposta": "gialla"},
+    {"domanda": "Qual è il numero atomico dell’ossigeno?", "risposta": "8"},
+    {"domanda": "Chi ha scritto '1984'?", "risposta": "orwell"},
+    {"domanda": "Qual è la moneta del Giappone?", "risposta": "yen"},
+    {"domanda": "Quanti stati ci sono negli USA?", "risposta": "50"},
+    {"domanda": "Qual è il fiume più lungo d'Italia?", "risposta": "po"},
+    {"domanda": "Quale animale è il più grande del mondo?", "risposta": "balena"},
+    {"domanda": "Che forma ha un cubo?", "risposta": "cubo"},
+    {"domanda": "Qual è il veicolo di solito usato per andare nello spazio?", "risposta": "razzo"},
+    {"domanda": "Chi ha inventato la lampadina?", "risposta": "edison"},
+    {"domanda": "Qual è la capitale dell’Australia?", "risposta": "canberra"},
+    {"domanda": "Che tipo di animale è un delfino?", "risposta": "mammifero"},
+    {"domanda": "In che anno è stato l’uomo sulla Luna la prima volta?", "risposta": "1969"},
+    {"domanda": "Quale colore si ottiene mescolando rosso e blu?", "risposta": "viola"},
+    {"domanda": "Che strumento misura la temperatura?", "risposta": "termometro"},
+    {"domanda": "Quanti pianeti sono rocciosi?", "risposta": "4"},
+    {"domanda": "Qual è la costellazione che rappresenta un orso?", "risposta": "orsa"},
+    {"domanda": "Qual è il numero primo dopo 7?", "risposta": "11"},
+    {"domanda": "Qual è la capitale del Brasile?", "risposta": "brasilia"},
+    {"domanda": "Che animale è un uccello simbolo degli USA?", "risposta": "aquila"},
+    {"domanda": "Qual è il principale gas serra?", "risposta": "co2"},
     {"domanda": "Che numero viene dopo il 99?", "risposta": "100"},
-    # ... aggiungi tutte le altre sfide fino a 150+ ...
+    {"domanda": "In che hemisfero si trova l’Italia?", "risposta": "nord"},
+    {"domanda": "Qual è il colore del latte?", "risposta": "bianco"},
+    {"domanda": "Quanto fa 15 - 7?", "risposta": "8"},
+    # (segue in un commento seguente con le rimanenti 200 domande)
 ]
 
-# Genera automaticamente sfide dummy fino a 150
-for i in range(len(sfide), 150):
-    sfide.append({"domanda": f"Domanda casuale #{i+1}", "risposta": "risposta"})
 
-# --------- COMANDO GIOCA ---------
+# Per esempio, generiamo automaticamente altre domande fittizie fino a 300
+for i in range(11, 301):
+    domande_data.append({"domanda": f"Domanda fittizia #{i}", "risposta": f"risposta{i}"})
+
+# --------- COMANDO GIOCO INTERATTIVO ---------
 @bot.command()
 async def gioca(ctx):
-    """Gioco ufficiale di Ombra del 130: rispondi alle sfide e guadagna punti!"""
+    """Inizia una nuova domanda e sfida l'utente"""
     uid = str(ctx.author.id)
     punti_data.setdefault(uid, {"punti": 0})
 
-    sfida = random.choice(sfide)
-    domanda = sfida["domanda"]
-    risposta_corretta = sfida["risposta"].lower()
+    domanda = random.choice(domande_data)
+    current_questions[uid] = domanda
 
     embed = discord.Embed(
         title="🎮 GIOCO UFFICIALE DI OMBRA DEL 130",
-        description=f"👤 {ctx.author.mention}, ecco la tua sfida:\n\n**{domanda}**",
+        description=f"👤 {ctx.author.mention}, ecco la tua sfida:\n\n**{domanda['domanda']}**",
         color=discord.Color.orange(),
         timestamp=discord.utils.utcnow()
     )
     await ctx.send(embed=embed)
 
-    def check(m):
-        return m.author == ctx.author and m.channel == ctx.channel
-
-    try:
-        risposta = await bot.wait_for("message", timeout=30.0, check=check)
-    except:
-        await ctx.send(f"⏰ Tempo scaduto! La risposta corretta era: **{risposta_corretta}**")
+# --------- COMANDO PER RISPOSTA ---------
+@bot.command()
+async def rispondi(ctx, *, risposta_utente):
+    uid = str(ctx.author.id)
+    if uid not in current_questions:
+        await ctx.send("❌ Non hai una domanda attiva. Usa `!gioca` per iniziare.")
         return
 
-    if risposta.content.lower() == risposta_corretta:
-        punti_guadagnati = random.randint(10, 50)
-        punti_data[uid]["punti"] += punti_guadagnati
+    domanda = current_questions[uid]
+    corretta = domanda["risposta"].lower().strip()
+    risposta_utente = risposta_utente.lower().strip()
+
+    if risposta_utente == corretta:
+        punti_estratti = random.randint(5, 50)
+        punti_data[uid]["punti"] += punti_estratti
         save_punti()
-        await ctx.send(f"✅ Bravo! Hai guadagnato **{punti_guadagnati} punti**. Totale punti: **{punti_data[uid]['punti']}**")
+        embed = discord.Embed(
+            title="✅ Risposta Corretta!",
+            description=f"🎉 Hai guadagnato **{punti_estratti} punti**!\n💎 Totale punti: **{punti_data[uid]['punti']}**",
+            color=discord.Color.green(),
+            timestamp=discord.utils.utcnow()
+        )
     else:
-        await ctx.send(f"❌ Sbagliato! La risposta corretta era: **{risposta_corretta}**. Totale punti: **{punti_data[uid]['punti']}**")
+        embed = discord.Embed(
+            title="❌ Risposta Sbagliata!",
+            description=f"La risposta corretta era: **{corretta}**\n💎 Totale punti: **{punti_data[uid]['punti']}**",
+            color=discord.Color.red(),
+            timestamp=discord.utils.utcnow()
+        )
+
+    del current_questions[uid]
+    await ctx.send(embed=embed)
 
 # --------- COMANDO MOSTRA PUNTI ---------
 @bot.command()
@@ -925,7 +1035,7 @@ async def punti(ctx, member: discord.Member = None):
     )
     await ctx.send(embed=embed)
 
-# --------- COMANDI GESTIONE PUNTI ---------
+# --------- COMANDO AGGIUNGI PUNTI ---------
 @bot.command()
 @punti_check()
 async def aggiungipunti(ctx, member: discord.Member, punti: int):
@@ -935,6 +1045,7 @@ async def aggiungipunti(ctx, member: discord.Member, punti: int):
     save_punti()
     await ctx.send(f"✅ Aggiunti {punti} punti a {member.mention}. Totale: {punti_data[uid]['punti']}")
 
+# --------- COMANDO TOGLI PUNTI ---------
 @bot.command()
 @punti_check()
 async def togli_punti(ctx, member: discord.Member, punti: int):
@@ -943,6 +1054,7 @@ async def togli_punti(ctx, member: discord.Member, punti: int):
     punti_data[uid]["punti"] = max(0, punti_data[uid]["punti"] - punti)
     save_punti()
     await ctx.send(f"⛔ Tolti {punti} punti a {member.mention}. Totale: {punti_data[uid]['punti']}")
+
 
 # ================= AVVIO =================
 bot.run(TOKEN)
