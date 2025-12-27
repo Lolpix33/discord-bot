@@ -837,24 +837,44 @@ def punti_check():
 
 # ======== Lista sfide (150+) ========
 
-# ---------- RUOLI AUTORIZZATI ----------
-# ID ruolo servizio
-GESTORE_PUNTI_ROLE_IDS = [SERVICE_ROLE_ID]
+# ================= GIOCO PUNTI =================
+import json, random, os, discord
+from discord.ext import commands
 
-# ---------- MEMORIA DEI PUNTI ----------
-punti_data = {}
-if os.path.exists("punti.json"):
-    with open("punti.json", "r") as f:
+PUNTI_FILE = "punti.json"
+GESTORE_PUNTI_ROLE_IDS = [SERVICE_ROLE_ID, 1454559530020245504]  # Tu + addetto punti
+GIOCO_CHANNEL_ID = 1454586206846455848
+GIOCO_INVITO = "https://discord.gg/PK78wNzzy4"
+
+# ================= CARICAMENTO DATI =================
+try:
+    with open(PUNTI_FILE, "r") as f:
         punti_data = json.load(f)
+except:
+    punti_data = {}
 
 def save_punti():
-    with open("punti.json", "w") as f:
-        json.dump(punti_data, f)
+    with open(PUNTI_FILE, "w") as f:
+        json.dump(punti_data, f, indent=4)
 
-# ---------- DOMANDE ----------
+# ================= CHECK PER SERVICE ROLE =================
+def service_check():
+    async def predicate(ctx):
+        return any(role.id in GESTORE_PUNTI_ROLE_IDS for role in ctx.author.roles)
+    return commands.check(predicate)
+
+# ================= CHECK PER CANALE DI GIOCO =================
+def canale_gioco_check():
+    async def predicate(ctx):
+        if ctx.channel.id != GIOCO_CHANNEL_ID:
+            await ctx.send(f"❌ Per giocare, vai nel canale corretto: <#{GIOCO_CHANNEL_ID}>\nOppure clicca qui: {GIOCO_INVITO}")
+            return False
+        return True
+    return commands.check(predicate)
+
+# ================= DOMANDE =================
 current_questions = {}
 
-# Lista domande effettive
 domande_data = [
     {"domanda": "Qual è il colore del cielo?", "risposta": "azzurro"},
     {"domanda": "Quante stagioni ci sono in un anno?", "risposta": "4"},
@@ -896,16 +916,16 @@ domande_data = [
     {"domanda": "Quale città è chiamata la città eterna?", "risposta": "roma"},
     {"domanda": "Chi ha scoperto la penicillina?", "risposta": "fleming"},
     {"domanda": "Qual è la valuta ufficiale della Cina?", "risposta": "yuan"},
+    # ... (aggiungi qui le altre domande fino a 300)
 ]
 
-# ---------- DECORATORE CHECK RUOLO ----------
-def service_check():
-    async def predicate(ctx):
-        return any(role.id in GESTORE_PUNTI_ROLE_IDS for role in ctx.author.roles)
-    return commands.check(predicate)
+# Genera domande fittizie aggiuntive fino a 300
+for i in range(len(domande_data) + 1, 301):
+    domande_data.append({"domanda": f"Domanda fittizia #{i}", "risposta": f"risposta{i}"})
 
-# ---------- COMANDO GIOCO ----------
+# ================= COMANDI =================
 @bot.command()
+@canale_gioco_check()
 async def gioca(ctx):
     uid = str(ctx.author.id)
     punti_data.setdefault(uid, {"punti": 0})
@@ -921,8 +941,8 @@ async def gioca(ctx):
     )
     await ctx.send(embed=embed)
 
-# ---------- COMANDO RISPOSTA ----------
 @bot.command()
+@canale_gioco_check()
 async def rispondi(ctx, *, risposta_utente):
     uid = str(ctx.author.id)
     if uid not in current_questions:
@@ -963,8 +983,8 @@ async def rispondi(ctx, *, risposta_utente):
     del current_questions[uid]
     await ctx.send(embed=embed)
 
-# ---------- COMANDO MOSTRA PUNTI ----------
 @bot.command()
+@canale_gioco_check()
 async def punti(ctx, member: discord.Member = None):
     member = member or ctx.author
     uid = str(member.id)
@@ -977,9 +997,9 @@ async def punti(ctx, member: discord.Member = None):
     )
     await ctx.send(embed=embed)
 
-# ---------- COMANDI SOLO SERVICE_ROLE_ID ----------
 @bot.command()
 @service_check()
+@canale_gioco_check()
 async def aggiungipunti(ctx, member: discord.Member, punti: int):
     uid = str(member.id)
     punti_data.setdefault(uid, {"punti": 0})
@@ -989,13 +1009,13 @@ async def aggiungipunti(ctx, member: discord.Member, punti: int):
 
 @bot.command()
 @service_check()
+@canale_gioco_check()
 async def togli_punti(ctx, member: discord.Member, punti: int):
     uid = str(member.id)
     punti_data.setdefault(uid, {"punti": 0})
     punti_data[uid]["punti"] = max(0, punti_data[uid]["punti"] - punti)
     save_punti()
     await ctx.send(f"⛔ Tolti {punti} punti a {member.mention}. Totale: {punti_data[uid]['punti']}")
-
 
 # ================= AVVIO =================
 bot.run(TOKEN)
