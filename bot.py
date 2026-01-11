@@ -1009,7 +1009,11 @@ class Gioco(commands.Cog):
                 punti_data[uid]["punti"] += punti_guadagnati
                 save_punti()
                 del self.current_games[uid]
-                await (content=f"🎉 Hai raggiunto il traguardo! Punti guadagnati: {punti_guadagnati}", view=None)
+                await interaction.response.send_message(
+                    content=f"🎉 Hai raggiunto il traguardo! Punti guadagnati: {punti_guadagnati}",
+                    view=None
+                )
+
             else:
                 barra = "🏃" + "—" * pos + "🏁" + "—" * (traguardo-pos)
                 await (content=f"**Corsa:** {barra}", view=view)
