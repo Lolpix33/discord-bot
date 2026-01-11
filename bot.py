@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands, tasks
 import json
 import time
+import random
 from datetime import timedelta
 from datetime import datetime
 import os
@@ -37,8 +38,34 @@ def save_punti():
 
 # ================= CONFIG =================
 TOKEN = os.getenv("DISCORD_TOKEN")
-
 PREFIX = "!"
+
+DATA_DIR = "data"
+os.makedirs(DATA_DIR, exist_ok=True)
+
+STAFF_FILE = os.path.join(DATA_DIR, "staff_hours.json")
+PUNTI_FILE = os.path.join(DATA_DIR, "punti.json")
+
+def load_json(path, default):
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            return json.load(f)
+    return default
+
+def save_json(path, data):
+    with open(path, "w") as f:
+        json.dump(data, f, indent=4)
+
+staff_data = load_json(STAFF_FILE, {})
+punti_data = load_json(PUNTI_FILE, {})
+
+intents = discord.Intents.default()
+intents.message_content = True
+intents.members = True
+
+bot = commands.Bot(command_prefix=PREFIX, intents=intents)
+
+
 
 ADV_MOD_ROLE_ID = 1399839659961618513   # Ruolo che può usare DM / DM RUOLO
 SERVICE_ROLE_ID = 1450228259018113187   # Ruolo staff
@@ -434,8 +461,9 @@ class ServizioView(discord.ui.View):
             save_staff()
 
             button.label = "🟡 Pausa Servizio"  # Cambia label bottone
-            await (view=self)
+            await interaction.response.edit_message(view=self)  # Aggiorna la view
             await interaction.followup.send("🟢 **Hai ripreso il servizio**", ephemeral=True)
+
         else:
             # Metti in pausa
             durata = time.time() - staff_data[uid]["inizio"]
@@ -526,7 +554,6 @@ async def pannelloservizio(ctx):
 @bot.command()
 @owner_or_direttore_check()
 async def aggiungiore(ctx, member: discord.Member, ore: float):
-
     uid = str(member.id)
     staff_data.setdefault(uid, {
     "totale": 0,
@@ -953,8 +980,8 @@ class Gioco(commands.Cog):
         """Mostra il menu principale del gioco"""
         view = MainMenu(ctx)
         embed = discord.Embed(
-            title="🎮 Menu Principale",
-            description="Scegli un'opzione usando i bottoni!",
+            title="🎮 GIOCHI DI OMBRA DEL 130!",
+            description="MODALITÀ INNOVATIVA DI GIOCARE PROVA ORA ANCHE TU I NUOVI MINIGIOCHI!",
             color=discord.Color.green()
         )
         await ctx.send(embed=embed, view=view)
@@ -1250,7 +1277,7 @@ class CasualGamesMenu(discord.ui.View):
         button_move.callback = muovi
         view = View()
         view.add_item(button_move)
-        barra_iniziale = "🏃" + "—" * 0 + "🏁" + "—" * 5
+        barra_iniziale = "🏃" + "—" * 0 + "🏁" + "—" * 5 (traguardo-pos)
         await interaction.response.send_message(f"**Corsa:** {barra_iniziale}", view=view)
 
 
