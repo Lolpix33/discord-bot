@@ -434,7 +434,7 @@ class ServizioView(discord.ui.View):
             save_staff()
 
             button.label = "🟡 Pausa Servizio"  # Cambia label bottone
-            await interaction.response.edit_message(view=self)
+            await (view=self)
             await interaction.followup.send("🟢 **Hai ripreso il servizio**", ephemeral=True)
         else:
             # Metti in pausa
@@ -982,10 +982,10 @@ class Gioco(commands.Cog):
                 punti_data[uid]["punti"] += punti_guadagnati
                 save_punti()
                 del self.current_games[uid]
-                await interaction.response.edit_message(content=f"🎉 Hai raggiunto il traguardo! Punti guadagnati: {punti_guadagnati}", view=None)
+                await (content=f"🎉 Hai raggiunto il traguardo! Punti guadagnati: {punti_guadagnati}", view=None)
             else:
                 barra = "🏃" + "—" * pos + "🏁" + "—" * (traguardo-pos)
-                await interaction.response.edit_message(content=f"**Corsa:** {barra}", view=view)
+                await (content=f"**Corsa:** {barra}", view=view)
 
         button = Button(label="Muovi", style=discord.ButtonStyle.green)
         button.callback = muovi
@@ -1003,7 +1003,7 @@ class MainMenu(discord.ui.View):
 
     @discord.ui.button(label="🎲 Giochi casuali", style=discord.ButtonStyle.green)
     async def casual_games(self, button: discord.ui.Button, interaction: discord.Interaction):
-        await interaction.response.edit_message(embed=discord.Embed(
+        await (embed=discord.Embed(
             title="🎲 Giochi casuali",
             description="1️⃣ Tiro dadi\n2️⃣ Indovina il numero\n3️⃣ Memoria\n4️⃣ Slot machine\n5️⃣ Quiz interattivo",
             color=discord.Color.orange()
@@ -1014,12 +1014,12 @@ class MainMenu(discord.ui.View):
         sorted_users = sorted(punti_data.items(), key=lambda x: x[1]["punti"], reverse=True)
         descrizione = "\n".join([f"{i+1}. <@{uid}> - {data['punti']} punti" for i, (uid, data) in enumerate(sorted_users[:10])])
         embed = discord.Embed(title="🏆 Leaderboard Top 10", description=descrizione, color=discord.Color.gold())
-        await interaction.response.edit_message(embed=embed, view=self)
+        await (embed=embed, view=self)
 
     @discord.ui.button(label="🎁 Premi & Loot Box", style=discord.ButtonStyle.blurple)
     async def lootbox(self, button: discord.ui.Button, interaction: discord.Interaction):
         premio = random.choice(premi_list)
-        await interaction.response.edit_message(embed=discord.Embed(
+        await (embed=discord.Embed(
             title="🎁 Loot Box",
             description=f"Hai ricevuto: {premio}",
             color=discord.Color.purple()
@@ -1033,7 +1033,7 @@ class MainMenu(discord.ui.View):
         embed = discord.Embed(title=f"📊 Statistiche di {interaction.user.display_name}",
                               description=f"💎 Punti totali: {punti}\n🎲 Giochi giocati: {giochi}",
                               color=discord.Color.blue())
-        await interaction.response.edit_message(embed=embed, view=self)
+        await (embed=embed, view=self)
 
 
 class CasualGamesMenu(discord.ui.View):
@@ -1055,7 +1055,7 @@ class CasualGamesMenu(discord.ui.View):
         embed = discord.Embed(title="🎲 Tiro Dadi",
                               description=f"Hai tirato: {dado1} + {dado2} = {totale}\nTotale punti: {punti_data[uid]['punti']}",
                               color=discord.Color.green())
-        await interaction.response.edit_message(embed=embed, view=self)
+        await (embed=embed, view=self)
 
     # -------- INDOVINA IL NUMERO --------
     @discord.ui.button(label="🔢 Indovina il numero", style=discord.ButtonStyle.primary)
@@ -1129,7 +1129,7 @@ class CasualGamesMenu(discord.ui.View):
             description=msg + f"\n💎 Punti totali: {punti_data[uid]['punti']}",
             color=discord.Color.purple()
         )
-        await interaction.response.edit_message(embed=embed, view=self)
+        await (embed=embed, view=self)
 
 
     # -------- QUIZ --------
@@ -1241,10 +1241,10 @@ class CasualGamesMenu(discord.ui.View):
                 punti_data[uid]["punti"] += punti_estratti
                 save_punti()
                 del current_games[uid]
-                await interaction.response.edit_message(content=f"🎉 Hai raggiunto il traguardo! Punti guadagnati: {punti_estratti}", view=None)
+                await (content=f"🎉 Hai raggiunto il traguardo! Punti guadagnati: {punti_estratti}", view=None)
             else:
                 barra = "🏃" + "—" * pos + "🏁" + "—" * (traguardo-pos)
-                await interaction.response.edit_message(content=f"**Corsa:** {barra}", view=view)
+                await (content=f"**Corsa:** {barra}", view=view)
 
         button_move = Button(label="Muovi", style=discord.ButtonStyle.green)
         button_move.callback = muovi
