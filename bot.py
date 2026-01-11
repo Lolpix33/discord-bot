@@ -869,10 +869,7 @@ async def on_message(message):
     await bot.process_commands(message)
 
 
-import discord
-from discord.ext import commands
-import json
-import random
+
 import asyncio
 
 # ================= GESTIONE BOT =================
