@@ -1254,7 +1254,13 @@ class CasualGamesMenu(discord.ui.View):
 
 
 # ================= REGISTRA COG =================
-bot.add_cog(Gioco(bot))
+async def setup():
+    await bot.add_cog(Gioco(bot))
+    await bot.start(TOKEN)
+
+import asyncio
+asyncio.run(setup())
+
 
 # ================= AVVIO BOT =================
 bot.run(TOKEN)
