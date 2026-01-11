@@ -895,7 +895,7 @@ def punti_check():
 
 def ceo_direttore_check():
     async def predicate(ctx):
-        allowed_ids = [TUO_ID, DIRETTORE_ID]  # Inserisci ID CEO e Direttore
+        allowed_ids = [1382481167894450319,1426308704759976108]  # Inserisci ID CEO e Direttore
         if ctx.author.id in allowed_ids:
             return True
         await ctx.send("❌ Non hai il permesso di usare questo comando.")
@@ -1110,19 +1110,27 @@ class CasualGamesMenu(discord.ui.View):
         punti_data.setdefault(uid, {"punti": 0, "giochi": 0})
         punti_data[uid]["giochi"] += 1
         punti_data[uid]["punti"] -= 10  # costo di gioco
+
+        # Verifica vincita
         if len(set(risultato)) == 1:
-            punti_data[uid]["punti"] += 200
-            msg = "🎉 JACKPOT! Hai vinto 200 punti!"
+            vincita = random.randint(50, 150)
+            punti_data[uid]["punti"] += vincita
+            msg = f"🎉 JACKPOT! Hai vinto {vincita} punti!\n{' | '.join(risultato)}"
         elif len(set(risultato)) == 2:
-            punti_data[uid]["punti"] += 50
-            msg = "✅ Hai vinto 50 punti!"
+            vincita = random.randint(10, 30)
+            punti_data[uid]["punti"] += vincita
+            msg = f"✅ Piccola vincita! Hai guadagnato {vincita} punti\n{' | '.join(risultato)}"
         else:
-            msg = "❌ Niente punti questa volta. Hai perso 10 punti per il gioco."
+            msg = f"❌ Peccato! Non hai vinto punti\n{' | '.join(risultato)}"
+
         save_punti()
-        embed = discord.Embed(title="🎰 Slot Machine",
-                              description=f"{' | '.join(risultato)}\n{msg}\nTotale punti: {punti_data[uid]['punti']}",
-                              color=discord.Color.orange())
+        embed = discord.Embed(
+            title="🎰 Slot Machine",
+            description=msg + f"\n💎 Punti totali: {punti_data[uid]['punti']}",
+            color=discord.Color.purple()
+        )
         await interaction.response.edit_message(embed=embed, view=self)
+
 
     # -------- QUIZ --------
     @discord.ui.button(label="❓ Quiz", style=discord.ButtonStyle.primary)
