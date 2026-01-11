@@ -1275,7 +1275,13 @@ class CasualGamesMenu(discord.ui.View):
                 await (content=f"🎉 Hai raggiunto il traguardo! Punti guadagnati: {punti_estratti}", view=None)
             else:
                 barra = "🏃" + "—" * pos + "🏁" + "—" * (traguardo-pos)
-                await (content=f"**Corsa:** {barra}", view=view)
+
+                await interaction.edit_original_response(
+                content=f"**Corsa:** {barra}",
+                view=view
+            )
+
+
 
         button_move = Button(label="Muovi", style=discord.ButtonStyle.green)
         button_move.callback = muovi
