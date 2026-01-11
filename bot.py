@@ -873,10 +873,7 @@ async def on_message(message):
 import asyncio
 
 # ================= GESTIONE BOT =================
-TOKEN = "YOUR_BOT_TOKEN"
 PUNTI_FILE = "punti.json"
-
-bot = commands.Bot(command_prefix="!", intents=discord.Intents.all())
 
 # ================= GESTIONE PUNTI =================
 GESTORE_PUNTI_ROLE_IDS = [SERVICE_ROLE_ID, 1454559530020245504]  # Tu + addetto punti
@@ -1261,3 +1258,4 @@ asyncio.run(setup())
 
 # ================= AVVIO BOT =================
 bot.run(TOKEN)
+
