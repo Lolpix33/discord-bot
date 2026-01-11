@@ -6,24 +6,59 @@ from datetime import timedelta
 from datetime import datetime
 import os
 
+# ================== PATH DATI ==================
+DATA_DIR = "data"
+STAFF_FILE = os.path.join(DATA_DIR, "staff_hours.json")
+PUNTI_FILE = os.path.join(DATA_DIR, "punti.json")
+
+os.makedirs(DATA_DIR, exist_ok=True)
+
+# ================== STAFF DATA ==================
+if os.path.exists(STAFF_FILE):
+    with open(STAFF_FILE, "r") as f:
+        staff_data = json.load(f)
+else:
+    staff_data = {}
+
+def save_staff():
+    with open(STAFF_FILE, "w") as f:
+        json.dump(staff_data, f, indent=4)
+
+# ================== PUNTI DATA ==================
+if os.path.exists(PUNTI_FILE):
+    with open(PUNTI_FILE, "r") as f:
+        punti_data = json.load(f)
+else:
+    punti_data = {}
+
+def save_punti():
+    with open(PUNTI_FILE, "w") as f:
+        json.dump(punti_data, f, indent=4)
+
 # ================= CONFIG =================
 TOKEN = os.getenv("DISCORD_TOKEN")
-
 
 PREFIX = "!"
 
 ADV_MOD_ROLE_ID = 1399839659961618513   # Ruolo che può usare DM / DM RUOLO
 SERVICE_ROLE_ID = 1450228259018113187   # Ruolo staff
+ORESTAFF_ROLE_ID = 1426308704759976108 # Ruolo che può usare !orestaff
+DIRETTORE_ROLE_ID = 1426308704759976108 # Ruolo Direttore (aggiunto)
+
+# Ruoli che possono gestire i punti (Service + Addetto Punti + Direttore)
+GESTORE_PUNTI_ROLE_IDS = [
+    SERVICE_ROLE_ID,
+    1454559530020245504,
+    DIRETTORE_ROLE_ID
+]
+
 STAFF_CHANNEL_ID = 1399142358116995173  # Log DM
 SERVICE_CHANNEL_ID = 1450225638224171090 # Log servizio
 GENERAL_CHANNEL_ID = 1385409744444981389 # Generale per messaggi automatici
-
 PROMO_CHANNEL_ID = 1385409744444981389  # Canale per messaggi YouTube
 STAFF_REMINDER_CHANNEL_ID = 1399142358116995173 # Canale promemoria staff
-
-ORESTAFF_ROLE_ID = 1426308704759976108 # Ruolo che può usare !orestaff
-
 PUNISH_LOG_CHANNEL_ID = STAFF_CHANNEL_ID  # usa il log staff che già hai
+
 
 DATA_FILE = "staff_hours.json"
 YOUTUBE_LINK = "https://www.youtube.com/@Ombra130"
@@ -44,15 +79,7 @@ async def server_lock(ctx):
 
 
 # ================= DATI =================
-try:
-    with open(DATA_FILE, "r") as f:
-        staff_data = json.load(f)
-except:
-    staff_data = {}
 
-def save_data():
-    with open(DATA_FILE, "w") as f:
-        json.dump(staff_data, f, indent=4)
 
 def format_time(seconds):
     return str(timedelta(seconds=int(seconds)))
@@ -308,14 +335,23 @@ async def dmruolo(ctx, ruolo: discord.Role, *, testo):
 async def servizio(ctx, stato: str):
     uid = str(ctx.author.id)
     now = time.time()
-    staff_data.setdefault(uid, {"totale": 0, "inizio": None})
+    staff_data.setdefault(uid, {
+    "totale": 0,
+    "inizio": None,
+    "pausa": False,
+    "messaggi": 0,
+    "comandi": 0,
+    "dm_gestiti": 0,
+    "vc_minuti": 0
+})
+
     channel = bot.get_channel(SERVICE_CHANNEL_ID)
 
     if stato.lower() == "on":
         if staff_data[uid]["inizio"]:
             return await ctx.reply("⚠️ Sei già in servizio")
         staff_data[uid]["inizio"] = now
-        save_data()
+        save_staff()
         embed = discord.Embed(
             title="🟢 ENTRATA IN SERVIZIO",
             description=f"👮 {ctx.author.mention} è ora **IN SERVIZIO**",
@@ -330,7 +366,8 @@ async def servizio(ctx, stato: str):
         durata = now - staff_data[uid]["inizio"]
         staff_data[uid]["totale"] += durata
         staff_data[uid]["inizio"] = None
-        save_data()
+        save_staff()
+
         rank = get_rank(staff_data[uid]["totale"])
         embed = discord.Embed(
             title="🔴 USCITA DAL SERVIZIO",
@@ -356,7 +393,16 @@ class ServizioView(discord.ui.View):
         uid = str(interaction.user.id)
         now = time.time()
 
-        staff_data.setdefault(uid, {"totale": 0, "inizio": None, "pausa": False})
+        staff_data.setdefault(uid, {
+    "totale": 0,
+    "inizio": None,
+    "pausa": False,
+    "messaggi": 0,
+    "comandi": 0,
+    "dm_gestiti": 0,
+    "vc_minuti": 0
+})
+
 
         if staff_data[uid]["inizio"] and not staff_data[uid].get("pausa"):
             return await interaction.response.send_message(
@@ -365,7 +411,8 @@ class ServizioView(discord.ui.View):
 
         staff_data[uid]["inizio"] = now
         staff_data[uid]["pausa"] = False
-        save_data()
+        save_staff()
+
 
         await interaction.response.send_message(
             "🟢 **Sei ora IN SERVIZIO**", ephemeral=True
@@ -384,7 +431,8 @@ class ServizioView(discord.ui.View):
             # Riprendi servizio
             staff_data[uid]["pausa"] = False
             staff_data[uid]["inizio"] = time.time()
-            save_data()
+            save_staff()
+
             button.label = "🟡 Pausa Servizio"  # Cambia label bottone
             await interaction.response.edit_message(view=self)
             await interaction.followup.send("🟢 **Hai ripreso il servizio**", ephemeral=True)
@@ -394,7 +442,8 @@ class ServizioView(discord.ui.View):
             staff_data[uid]["totale"] += durata
             staff_data[uid]["pausa"] = True
             staff_data[uid]["inizio"] = None
-            save_data()
+            save_staff()
+
             button.label = "🟢 Riprendi Servizio"  # Cambia label bottone
             await interaction.response.edit_message(view=self)
             await interaction.followup.send("🟡 **Servizio messo in PAUSA**", ephemeral=True)
@@ -418,7 +467,8 @@ class ServizioView(discord.ui.View):
 
         staff_data[uid]["inizio"] = None
         staff_data[uid]["pausa"] = False
-        save_data()
+        save_staff()
+
 
         rank = get_rank(staff_data[uid]["totale"])
 
@@ -474,16 +524,27 @@ async def pannelloservizio(ctx):
 
 # ================= COMANDI FOUNDER =================
 @bot.command()
-@founder_check()
+@owner_or_direttore_check()
 async def aggiungiore(ctx, member: discord.Member, ore: float):
+
     uid = str(member.id)
-    staff_data.setdefault(uid, {"totale": 0, "inizio": None})
+    staff_data.setdefault(uid, {
+    "totale": 0,
+    "inizio": None,
+    "pausa": False,
+    "messaggi": 0,
+    "comandi": 0,
+    "dm_gestiti": 0,
+    "vc_minuti": 0
+})
+
     staff_data[uid]["totale"] += ore * 3600
-    save_data()
+    save_staff()
+
     await ctx.send(f"✅ Aggiunte {ore} ore a {member.mention}")
 
 @bot.command()
-@founder_check()
+@owner_or_direttore_check()
 async def togliore(ctx, member: discord.Member, ore: float):
     uid = str(member.id)
     if uid not in staff_data:
@@ -491,7 +552,8 @@ async def togliore(ctx, member: discord.Member, ore: float):
     staff_data[uid]["totale"] = max(
         0, staff_data[uid]["totale"] - ore * 3600
     )
-    save_data()
+    save_staff()
+
     await ctx.send(f"⛔ Tolte {ore} ore a {member.mention}")
 
 # ================= RANK E ORE STAFF =================
@@ -747,511 +809,452 @@ async def on_ready():
 
 @bot.event
 async def on_message(message):
-    # Ignora i messaggi del bot stesso
+    # Ignora i messaggi del bot
     if message.author.bot:
         return
 
-    # SOLO MESSAGGI IN PRIVATO
+    uid = str(message.author.id)
+
+    # ================= MESSAGGI IN SERVER (conteggio staff) =================
+    if message.guild:
+        if uid in staff_data:
+            if staff_data[uid].get("inizio") and not staff_data[uid].get("pausa"):
+                staff_data[uid]["messaggi"] += 1
+                save_staff()
+
+    # ================= MESSAGGI IN DM =================
     if isinstance(message.channel, discord.DMChannel):
         staff_channel = bot.get_channel(STAFF_CHANNEL_ID)
 
+        # Log DM allo staff
         if staff_channel:
             embed = discord.Embed(
-                title="📩 NUOVO MESSAGGIO INVIATO AL BOT DA UN UTENTE",
+                title="📩 NUOVO MESSAGGIO AL BOT",
                 color=discord.Color.dark_gold(),
                 timestamp=discord.utils.utcnow()
             )
-
             embed.add_field(
                 name="👤 Utente",
                 value=f"{message.author} (`{message.author.id}`)",
                 inline=False
             )
-
             embed.add_field(
                 name="💬 Messaggio",
-                value=message.content if message.content else "*[Messaggio vuoto / allegato]*",
+                value=message.content or "*[Allegato o messaggio vuoto]*",
                 inline=False
             )
-
             embed.set_thumbnail(url=message.author.display_avatar.url)
-            embed.set_footer(text="📌 DM ricevuto dal bot • Staff Ombra del 130")
+            embed.set_footer(text="DM ricevuto • Staff Ombra del 130")
 
             await staff_channel.send(embed=embed)
 
-        # RISPOSTA AUTOMATICA ALL’UTENTE
+        # ================= CONTA DM GESTITO =================
+        for staff_uid, dati in staff_data.items():
+            if dati.get("inizio") and not dati.get("pausa"):
+                dati["dm_gestiti"] += 1
+                save_staff()
+                break  # solo UNO staff prende il DM
+
+        # ================= RISPOSTA AUTOMATICA =================
         try:
             await message.author.send(
                 "✅ **Messaggio ricevuto!**\n\n"
-                "👀 Lo **staff sta leggendo** la tua richiesta.\n"
-                "🛠️ A breve verificheremo se sarà necessario fornirti **supporto**.\n\n"
-                "⏳ Grazie per la pazienza!"
+                "👀 Lo staff sta leggendo la tua richiesta.\n"
+                "⏳ Ti risponderemo il prima possibile."
             )
         except:
             pass
 
-    # FONDAMENTALE: permette ai comandi di funzionare
+    # FONDAMENTALE per far funzionare i comandi
     await bot.process_commands(message)
 
-# ================= GIOCO PUNTI =================
-PUNTI_FILE = "punti.json"
-GESTORE_PUNTI_ROLE_IDS = [SERVICE_ROLE_ID, 1454559530020245504]  # Tu + addetto punti
 
-# Carica dati
-try:
-    with open(PUNTI_FILE, "r") as f:
-        punti_data = json.load(f)
-except:
-    punti_data = {}
-
-def save_punti():
-    with open(PUNTI_FILE, "w") as f:
-        json.dump(punti_data, f, indent=4)
-
-def punti_check():
-    async def predicate(ctx):
-        return any(r.id in GESTORE_PUNTI_ROLE_IDS for r in ctx.author.roles) or ctx.author.guild_permissions.administrator
-    return commands.check(predicate)
-
-# ================= GIOCO UFFICIALE DI OMBRA DEL 130 =================
-import random
-
-PUNTI_FILE = "punti.json"
-GESTORE_PUNTI_ROLE_IDS = [SERVICE_ROLE_ID, 1454559530020245504]  # Tu + addetto punti
-
-# Carica dati
-try:
-    with open(PUNTI_FILE, "r") as f:
-        punti_data = json.load(f)
-except:
-    punti_data = {}
-
-def save_punti():
-    with open(PUNTI_FILE, "w") as f:
-        json.dump(punti_data, f, indent=4)
-
-def punti_check():
-    async def predicate(ctx):
-        return any(r.id in GESTORE_PUNTI_ROLE_IDS for r in ctx.author.roles) or ctx.author.guild_permissions.administrator
-    return commands.check(predicate)
-
-# ======== Lista sfide (150+) ========
-
-# ================= GIOCO PUNTI =================
-import json, random, os, discord
+import discord
 from discord.ext import commands
+import json
+import random
+import asyncio
 
+# ================= GESTIONE BOT =================
+TOKEN = "YOUR_BOT_TOKEN"
 PUNTI_FILE = "punti.json"
-GESTORE_PUNTI_ROLE_IDS = [SERVICE_ROLE_ID, 1454559530020245504]  # Tu + addetto punti
-GIOCO_CHANNEL_ID = 1454586206846455848
-GIOCO_INVITO = "ENTRA QUA PER GIOCARE #🎮-minigiochi"
 
-# ================= CARICAMENTO DATI =================
+bot = commands.Bot(command_prefix="!", intents=discord.Intents.all())
+
+# ================= GESTIONE PUNTI =================
+GESTORE_PUNTI_ROLE_IDS = [SERVICE_ROLE_ID, 1454559530020245504]  # Tu + addetto punti
+
 try:
     with open(PUNTI_FILE, "r") as f:
         punti_data = json.load(f)
-except:
+except FileNotFoundError:
     punti_data = {}
 
 def save_punti():
     with open(PUNTI_FILE, "w") as f:
         json.dump(punti_data, f, indent=4)
 
-# ================= CHECK PER SERVICE ROLE =================
-def service_check():
+def punti_check():
     async def predicate(ctx):
-        return any(role.id in GESTORE_PUNTI_ROLE_IDS for role in ctx.author.roles)
+        return any(r.id in GESTORE_PUNTI_ROLE_IDS for r in ctx.author.roles) or ctx.author.guild_permissions.administrator
     return commands.check(predicate)
 
-# ================= CHECK PER CANALE DI GIOCO =================
-def canale_gioco_check():
+def ceo_direttore_check():
     async def predicate(ctx):
-        if ctx.channel.id != GIOCO_CHANNEL_ID:
-            await ctx.send(f"❌ Per giocare, vai nel canale corretto: <#{GIOCO_CHANNEL_ID}>\nOppure clicca qui: {GIOCO_INVITO}")
-            return False
-        return True
+        allowed_ids = [TUO_ID, DIRETTORE_ID]  # Inserisci ID CEO e Direttore
+        if ctx.author.id in allowed_ids:
+            return True
+        await ctx.send("❌ Non hai il permesso di usare questo comando.")
+        return False
     return commands.check(predicate)
 
-# ================= DOMANDE =================
-current_questions = {}
-
-domande_data = [
-    {"domanda": "Qual è il colore del cielo?", "risposta": "azzurro"},
-    {"domanda": "Quante stagioni ci sono in un anno?", "risposta": "4"},
-    {"domanda": "Qual è il numero di pianeti nel sistema solare?", "risposta": "8"},
-    {"domanda": "Qual è il simbolo chimico dell'acqua?", "risposta": "h2o"},
-    {"domanda": "Chi ha scritto 'La Divina Commedia'?", "risposta": "dante"},
-    {"domanda": "Qual è la capitale d'Italia?", "risposta": "roma"},
-    {"domanda": "In quale continente si trova l'Egitto?", "risposta": "africa"},
-    {"domanda": "Quanti giorni ha un anno bisestile?", "risposta": "366"},
-    {"domanda": "Qual è la lingua più parlata al mondo?", "risposta": "cinese"},
-    {"domanda": "Qual è l'animale terrestre più veloce?", "risposta": "ghepardo"},
-    {"domanda": "Qual è la moneta ufficiale del Giappone?", "risposta": "yen"},
-    {"domanda": "Qual è la capitale della Francia?", "risposta": "parigi"},
-    {"domanda": "Quanto fa 12 + 15?", "risposta": "27"},
-    {"domanda": "Quale pianeta è conosciuto come il Pianeta Rosso?", "risposta": "marte"},
-    {"domanda": "Quanti occhi ha una formica?", "risposta": "2"},
-    {"domanda": "Qual è il più grande mammifero terrestre?", "risposta": "elefante"},
-    {"domanda": "Che colore ha il cavallo bianco di Napoleone?", "risposta": "bianco"},
-    {"domanda": "Quante ore ci sono in un giorno?", "risposta": "24"},
-    {"domanda": "Qual è il numero di mesi in un anno?", "risposta": "12"},
-    {"domanda": "In che anno è caduto il muro di Berlino?", "risposta": "1989"},
-    {"domanda": "Qual è la capitale della Russia?", "risposta": "mosca"},
-    {"domanda": "Chi ha scritto 'Il Nome della Rosa'?", "risposta": "eco"},
-    {"domanda": "Qual è il simbolo chimico del ferro?", "risposta": "fe"},
-    {"domanda": "Quanti colori ha l'arcobaleno?", "risposta": "7"},
-    {"domanda": "Qual è il fiume più lungo del mondo?", "risposta": "nilo"},
-    {"domanda": "Chi ha dipinto 'La Notte Stellata'?", "risposta": "van gogh"},
-    {"domanda": "In che anno è stata scoperta l'America?", "risposta": "1492"},
-    {"domanda": "Qual è l'animale nazionale del Canada?", "risposta": "castoro"},
-    {"domanda": "Quanto fa 25 x 4?", "risposta": "100"},
-    {"domanda": "Qual è la montagna più alta d'Europa?", "risposta": "elbrus"},
-    {"domanda": "Chi ha inventato il computer?", "risposta": "turing"},
-    {"domanda": "Quale pianeta è il più vicino al Sole?", "risposta": "mercurio"},
-    {"domanda": "Qual è il continente più grande?", "risposta": "asia"},
-    {"domanda": "Quanti stati ci sono in Italia?", "risposta": "20"},
-    {"domanda": "Chi ha scritto 'Il Piccolo Principe'?", "risposta": "de saint-exupery"},
-    {"domanda": "Qual è l'animale più grande del mondo?", "risposta": "balena"},
-    {"domanda": "Quanti pianeti nani ci sono nel sistema solare?", "risposta": "5"},
-    {"domanda": "Quale città è chiamata la città eterna?", "risposta": "roma"},
-    {"domanda": "Chi ha scoperto la penicillina?", "risposta": "fleming"},
-    {"domanda": "Qual è la valuta ufficiale della Cina?", "risposta": "yuan"},
-    {"domanda": "Qual è il colore della bandiera italiana?", "risposta": "verde bianco rosso"},
-    {"domanda": "Quanti pianeti ci sono nel sistema solare dopo Plutone?", "risposta": "8"},
-    {"domanda": "Qual è la capitale della Germania?", "risposta": "berlino"},
-    {"domanda": "Chi ha scritto 'Romeo e Giulietta'?", "risposta": "shakespeare"},
-    {"domanda": "Quale animale è simbolo dell'Australia?", "risposta": "canguro"},
-    {"domanda": "Quanto fa 7 + 6?", "risposta": "13"},
-    {"domanda": "Qual è la capitale della Spagna?", "risposta": "madrid"},
-    {"domanda": "Che forma ha la Terra?", "risposta": "sfera"},
-    {"domanda": "Qual è il più grande oceano del mondo?", "risposta": "oceano pacifico"},
-    {"domanda": "Chi ha scoperto l'America?", "risposta": "cristoforo colombo"},
-    {"domanda": "Quanti giorni ci sono in un anno normale?", "risposta": "365"},
-    {"domanda": "Qual è la valuta della Russia?", "risposta": "rublo"},
-    {"domanda": "Quale animale produce il miele?", "risposta": "ape"},
-    {"domanda": "Chi ha scritto 'I promessi sposi'?", "risposta": "manzoni"},
-    {"domanda": "Quanti continenti ci sono sulla Terra?", "risposta": "7"},
-    {"domanda": "Quale pianeta è conosciuto come il gigante gassoso?", "risposta": "giove"},
-    {"domanda": "Quanto fa 15 x 3?", "risposta": "45"},
-    {"domanda": "Qual è la montagna più alta d'Africa?", "risposta": "kilimangiaro"},
-    {"domanda": "Che animale è considerato il re della savana?", "risposta": "leone"},
-    {"domanda": "Quale lingua si parla in Brasile?", "risposta": "portoghese"},
-    {"domanda": "Chi ha inventato la lampadina?", "risposta": "edison"},
-    {"domanda": "Qual è il simbolo chimico dell'oro?", "risposta": "au"},
-    {"domanda": "Quanti minuti ci sono in un'ora?", "risposta": "60"},
-    {"domanda": "Qual è il pianeta più piccolo del sistema solare?", "risposta": "mercuro"},
-    {"domanda": "Chi ha dipinto la Cappella Sistina?", "risposta": "michelangelo"},
-    {"domanda": "Qual è la capitale dell'Egitto?", "risposta": "il cairo"},
-    {"domanda": "Che tipo di animale è un delfino?", "risposta": "mammifero"},
-    {"domanda": "Quanti oceani ci sono sulla Terra?", "risposta": "5"},
-    {"domanda": "Quale organo pompa il sangue nel corpo umano?", "risposta": "cuore"},
-    {"domanda": "Chi ha scritto '1984'?", "risposta": "orwell"},
-    {"domanda": "Qual è il numero atomico dell'ossigeno?", "risposta": "8"},
-    {"domanda": "Qual è il colore del sangue umano?", "risposta": "rosso"},
-    {"domanda": "Che animale è il simbolo degli Stati Uniti?", "risposta": "aquila"},
-    {"domanda": "Qual è la capitale del Giappone?", "risposta": "tokyo"},
-    {"domanda": "Che gas respiriamo principalmente?", "risposta": "azoto"},
-    {"domanda": "Quanti secondi ci sono in un minuto?", "risposta": "60"},
-    {"domanda": "Chi ha scritto 'Hamlet'?", "risposta": "shakespeare"},
-    {"domanda": "Qual è l'animale terrestre più lento?", "risposta": "bradipo"},
-    {"domanda": "Quale pianeta è conosciuto come il Pianeta Rosso?", "risposta": "marte"},
-    {"domanda": "Quante stagioni ci sono in un anno?", "risposta": "4"},
-    {"domanda": "Quanto fa 9 x 9?", "risposta": "81"},
-    {"domanda": "Qual è la capitale del Canada?", "risposta": "ottawa"},
-    {"domanda": "Qual è la montagna più alta del mondo?", "risposta": "everest"},
-    {"domanda": "Quale metallo è liquido a temperatura ambiente?", "risposta": "mercurio"},
-    {"domanda": "Che forma ha un cubo?", "risposta": "cubo"},
-    {"domanda": "Quale animale ha le strisce bianche e nere?", "risposta": "zebra"},
-    {"domanda": "Quanti denti ha un adulto?", "risposta": "32"},
-    {"domanda": "Chi ha dipinto la Gioconda?", "risposta": "da vinci"},
-    {"domanda": "Qual è il più grande mammifero marino?", "risposta": "balena"},
-    {"domanda": "Quanto dura un quarto d'ora in minuti?", "risposta": "15"},
-    {"domanda": "Qual è il simbolo chimico dell'acqua?", "risposta": "h2o"},
-    {"domanda": "Qual è la lingua più parlata in Europa?", "risposta": "inglese"},
-    {"domanda": "Quanti pianeti sono rocciosi?", "risposta": "4"},
-    {"domanda": "Qual è il principale gas serra?", "risposta": "co2"},
-    {"domanda": "Quale animale non può volare?", "risposta": "pinguino"},
-    {"domanda": "Che numero viene dopo il 99?", "risposta": "100"},
-    {"domanda": "Qual è la capitale dell'Australia?", "risposta": "canberra"},
-    {"domanda": "Chi ha scritto 'Il Gattopardo'?", "risposta": "tomasi di lampedusa"},
-    {"domanda": "Qual è il veicolo usato per andare nello spazio?", "risposta": "razzo"},
-    {"domanda": "Chi ha scoperto la penicillina?", "risposta": "fleming"},
-    {"domanda": "Qual è la capitale della Grecia?", "risposta": "atene"},
-    {"domanda": "Che strumento misura la temperatura?", "risposta": "termometro"},
-    {"domanda": "Quanti pianeti hanno anelli nel sistema solare?", "risposta": "1"},
-    {"domanda": "Qual è la moneta ufficiale degli Stati Uniti?", "risposta": "dollaro"},
-    {"domanda": "Quale città è chiamata la Big Apple?", "risposta": "new york"},
-    {"domanda": "Che colore ha il latte?", "risposta": "bianco"},
-    {"domanda": "Che animale è simbolo della pace?", "risposta": "colomba"},
-    {"domanda": "Quanti spicchi ha un'arancia?", "risposta": "10"},
-    {"domanda": "Chi ha inventato il telefono?", "risposta": "bell"},
-    {"domanda": "Qual è il colore di un cavallo albino?", "risposta": "bianco"},
-    {"domanda": "Quanti occhi ha un ragno?", "risposta": "8"},
-    {"domanda": "In che anno è iniziata la Seconda Guerra Mondiale?", "risposta": "1939"},
-    {"domanda": "Chi ha dipinto 'Notte Stellata'?", "risposta": "van gogh"},
-    {"domanda": "Quanti mesi hanno 31 giorni?", "risposta": "7"},
-    {"domanda": "Quale organo filtra il sangue?", "risposta": "rene"},
-    {"domanda": "Quanto fa 7 x 6?", "risposta": "42"},
-    {"domanda": "Qual è la capitale del Regno Unito?", "risposta": "londra"},
-    {"domanda": "Che animale è il migliore amico dell'uomo?", "risposta": "cane"},
-    {"domanda": "Qual è la principale fonte di energia della Terra?", "risposta": "sole"},
-    {"domanda": "Che colore ottieni mescolando rosso e blu?", "risposta": "viola"},
-    {"domanda": "In quale continente si trova l'India?", "risposta": "asia"},
-    {"domanda": "Quale elemento chimico ha simbolo N?", "risposta": "azoto"},
-    {"domanda": "Quanti stati ci sono negli USA?", "risposta": "50"},
-    {"domanda": "Quanto fa 100 - 37?", "risposta": "63"},
-    {"domanda": "Che forma ha un uovo?", "risposta": "ovale"},
-    {"domanda": "Qual è l’animale simbolo della Cina?", "risposta": "panda"},
-    {"domanda": "Che animale è un mammifero marino con denti?", "risposta": "delfino"},
-    {"domanda": "Qual è la capitale della Turchia?", "risposta": "ankara"},
-    {"domanda": "Che colore ha un limone maturo?", "risposta": "giallo"},
-    {"domanda": "Quanti giorni ha febbraio negli anni bisestili?", "risposta": "29"},
-    {"domanda": "Chi ha scritto 'Iliade'?", "risposta": "omero"},
-    {"domanda": "Qual è il simbolo chimico del carbonio?", "risposta": "c"},
-    {"domanda": "Quale animale è simbolo dell’Egitto antico?", "risposta": "gatto"},
-    {"domanda": "Che numero viene prima del 50?", "risposta": "49"},
-    {"domanda": "Qual è la capitale del Messico?", "risposta": "città del messico"},
-    {"domanda": "Quanti denti ha un cucciolo di cane?", "risposta": "28"},
-    {"domanda": "Chi ha inventato il primo aereo?", "risposta": "fratelli wright"},
-    {"domanda": "Che gas utilizza il corpo per respirare?", "risposta": "ossigeno"},
-    {"domanda": "Quanto fa 8 + 12?", "risposta": "20"},
-    {"domanda": "Qual è il numero primo dopo 7?", "risposta": "11"},
-    {"domanda": "Quale animale ha la proboscide?", "risposta": "elefante"},
-    {"domanda": "Che tipo di animale è un pinguino?", "risposta": "uccello"},
-    {"domanda": "Qual è il colore del sangue di un granchio?", "risposta": "blu"},
-    {"domanda": "Chi ha scritto 'Don Chisciotte'?", "risposta": "cervantes"},
-    {"domanda": "Quanti continenti hanno il deserto del Sahara?", "risposta": "1"},
-    {"domanda": "Che numero viene dopo 0?", "risposta": "1"},
-    {"domanda": "Qual è il pianeta più lontano dal Sole?", "risposta": "netuno"},
-    {"domanda": "Quanti muscoli ha il corpo umano?", "risposta": "650"},
-    {"domanda": "Qual è la capitale della Norvegia?", "risposta": "oslo"},
-    {"domanda": "Che animale vive nel polo nord?", "risposta": "orso polare"},
-    {"domanda": "Quanto fa 20 / 4?", "risposta": "5"},
-    {"domanda": "Quale elemento chimico ha simbolo He?", "risposta": "elio"},
-    {"domanda": "Che animale ha il collo più lungo?", "risposta": "giraffa"},
-    {"domanda": "Quanti litri ci sono in un metro cubo?", "risposta": "1000"},
-    {"domanda": "Che colore ha una mela rossa?", "risposta": "rossa"},
-    {"domanda": "Qual è la capitale della Svezia?", "risposta": "stoccolma"},
-    {"domanda": "Che animale ha il corno sul naso?", "risposta": "rinoceronte"},
-    {"domanda": "Quanto fa 11 x 11?", "risposta": "121"},
-    {"domanda": "Che tipo di animale è un cavallo?", "risposta": "mammifero"},
-    {"domanda": "Chi ha inventato il telegrafo?", "risposta": "morse"},
-    {"domanda": "Qual è la valuta del Regno Unito?", "risposta": "sterlina"},
-    {"domanda": "Che numero viene dopo 19?", "risposta": "20"},
-    {"domanda": "Qual è il colore della bandiera italiana?", "risposta": "verde bianco rosso"},
-    {"domanda": "Quanti pianeti ci sono nel sistema solare dopo Plutone?", "risposta": "8"},
-    {"domanda": "Qual è la capitale della Germania?", "risposta": "berlino"},
-    {"domanda": "Chi ha scritto 'Romeo e Giulietta'?", "risposta": "shakespeare"},
-    {"domanda": "Quale animale è simbolo dell'Australia?", "risposta": "canguro"},
-    {"domanda": "Quanto fa 7 + 6?", "risposta": "13"},
-    {"domanda": "Qual è la capitale della Spagna?", "risposta": "madrid"},
-    {"domanda": "Che forma ha la Terra?", "risposta": "sfera"},
-    {"domanda": "Qual è il più grande oceano del mondo?", "risposta": "oceano pacifico"},
-    {"domanda": "Chi ha scoperto l'America?", "risposta": "cristoforo colombo"},
-    {"domanda": "Quanti giorni ci sono in un anno normale?", "risposta": "365"},
-    {"domanda": "Qual è la valuta della Russia?", "risposta": "rublo"},
-    {"domanda": "Quale animale produce il miele?", "risposta": "ape"},
-    {"domanda": "Chi ha scritto 'I promessi sposi'?", "risposta": "manzoni"},
-    {"domanda": "Quanti continenti ci sono sulla Terra?", "risposta": "7"},
-    {"domanda": "Quale pianeta è conosciuto come il gigante gassoso?", "risposta": "giove"},
-    {"domanda": "Quanto fa 15 x 3?", "risposta": "45"},
-    {"domanda": "Qual è la montagna più alta d'Africa?", "risposta": "kilimangiaro"},
-    {"domanda": "Che animale è considerato il re della savana?", "risposta": "leone"},
-    {"domanda": "Quale lingua si parla in Brasile?", "risposta": "portoghese"},
-    {"domanda": "Chi ha inventato la lampadina?", "risposta": "edison"},
-    {"domanda": "Qual è il simbolo chimico dell'oro?", "risposta": "au"},
-    {"domanda": "Quanti minuti ci sono in un'ora?", "risposta": "60"},
-    {"domanda": "Qual è il pianeta più piccolo del sistema solare?", "risposta": "mercurio"},
-    {"domanda": "Chi ha dipinto la Cappella Sistina?", "risposta": "michelangelo"},
-    {"domanda": "Qual è la capitale dell'Egitto?", "risposta": "il cairo"},
-    {"domanda": "Che tipo di animale è un delfino?", "risposta": "mammifero"},
-    {"domanda": "Quanti oceani ci sono sulla Terra?", "risposta": "5"},
-    {"domanda": "Quale organo pompa il sangue nel corpo umano?", "risposta": "cuore"},
-    {"domanda": "Chi ha scritto '1984'?", "risposta": "orwell"},
-    {"domanda": "Qual è l'animale terrestre più lento?", "risposta": "bradipo"},
-    {"domanda": "Quale pianeta è conosciuto come il Pianeta Rosso?", "risposta": "marte"},
-    {"domanda": "Quante stagioni ci sono in un anno?", "risposta": "4"},
-    {"domanda": "Quanto fa 9 x 9?", "risposta": "81"},
-    {"domanda": "Qual è la capitale del Canada?", "risposta": "ottawa"},
-    {"domanda": "Qual è la montagna più alta del mondo?", "risposta": "everest"},
-    {"domanda": "Quale metallo è liquido a temperatura ambiente?", "risposta": "mercurio"},
-    {"domanda": "Che forma ha un cubo?", "risposta": "cubo"},
-    {"domanda": "Quale animale ha le strisce bianche e nere?", "risposta": "zebra"},
-    {"domanda": "Quanti denti ha un adulto?", "risposta": "32"},
-    {"domanda": "Chi ha dipinto la Gioconda?", "risposta": "da vinci"},
-    {"domanda": "Qual è il più grande mammifero marino?", "risposta": "balena"},
-    {"domanda": "Quanto dura un quarto d'ora in minuti?", "risposta": "15"},
-    {"domanda": "Qual è il simbolo chimico dell'acqua?", "risposta": "h2o"},
-    {"domanda": "Qual è la lingua più parlata in Europa?", "risposta": "inglese"},
-    {"domanda": "Quanti pianeti sono rocciosi?", "risposta": "4"},
-    {"domanda": "Qual è il principale gas serra?", "risposta": "co2"},
-    {"domanda": "Quale animale non può volare?", "risposta": "pinguino"},
-    {"domanda": "Che numero viene dopo il 99?", "risposta": "100"},
-    {"domanda": "Qual è la capitale dell'Australia?", "risposta": "canberra"},
-    {"domanda": "Chi ha scritto 'Il Gattopardo'?", "risposta": "tomasi di lampedusa"},
-    {"domanda": "Qual è il veicolo usato per andare nello spazio?", "risposta": "razzo"},
-    {"domanda": "Chi ha scoperto la penicillina?", "risposta": "fleming"},
-    {"domanda": "Qual è la capitale della Grecia?", "risposta": "atene"},
-    {"domanda": "Che strumento misura la temperatura?", "risposta": "termometro"},
-    {"domanda": "Quanti pianeti hanno anelli nel sistema solare?", "risposta": "1"},
-    {"domanda": "Qual è la moneta ufficiale degli Stati Uniti?", "risposta": "dollaro"},
-    {"domanda": "Quale città è chiamata la Big Apple?", "risposta": "new york"},
-    {"domanda": "Che colore ha il latte?", "risposta": "bianco"},
-    {"domanda": "Che animale è simbolo della pace?", "risposta": "colomba"},
-    {"domanda": "Quanti spicchi ha un'arancia?", "risposta": "10"},
-    {"domanda": "Chi ha inventato il telefono?", "risposta": "bell"},
-    {"domanda": "Qual è il colore di un cavallo albino?", "risposta": "bianco"},
-    {"domanda": "Quanti occhi ha un ragno?", "risposta": "8"},
-    {"domanda": "In che anno è iniziata la Seconda Guerra Mondiale?", "risposta": "1939"},
-    {"domanda": "Chi ha dipinto 'Notte Stellata'?", "risposta": "van gogh"},
-    {"domanda": "Quanti mesi hanno 31 giorni?", "risposta": "7"},
-    {"domanda": "Quale organo filtra il sangue?", "risposta": "rene"},
-    {"domanda": "Quanto fa 7 x 6?", "risposta": "42"},
-    {"domanda": "Qual è la capitale del Regno Unito?", "risposta": "londra"},
-    {"domanda": "Che animale è il migliore amico dell'uomo?", "risposta": "cane"},
-    {"domanda": "Qual è la principale fonte di energia della Terra?", "risposta": "sole"},
-    {"domanda": "Che colore ottieni mescolando rosso e blu?", "risposta": "viola"},
-    {"domanda": "In quale continente si trova l'India?", "risposta": "asia"},
-    {"domanda": "Quale elemento chimico ha simbolo N?", "risposta": "azoto"},
-    {"domanda": "Quanti stati ci sono negli USA?", "risposta": "50"},
-    {"domanda": "Quanto fa 100 - 37?", "risposta": "63"},
-    {"domanda": "Che forma ha un cubo?", "risposta": "cubo"},
-    {"domanda": "Quale animale è simbolo della Cina?", "risposta": "panda"},
-    {"domanda": "Che animale è un mammifero marino con denti?", "risposta": "delfino"},
-    {"domanda": "Qual è la capitale della Turchia?", "risposta": "ankara"},
-    {"domanda": "Che colore ha un limone maturo?", "risposta": "giallo"},
-    {"domanda": "Quanti giorni ha febbraio negli anni bisestili?", "risposta": "29"},
-    {"domanda": "Chi ha scritto 'Iliade'?", "risposta": "omero"},
-    {"domanda": "Qual è il simbolo chimico del carbonio?", "risposta": "c"},
-    {"domanda": "Quale animale è simbolo dell’Egitto antico?", "risposta": "gatto"},
-    {"domanda": "Che numero viene prima del 50?", "risposta": "49"},
-    {"domanda": "Qual è la capitale del Messico?", "risposta": "città del messico"},
-    {"domanda": "Quanti denti ha un cucciolo di cane?", "risposta": "28"},
-    {"domanda": "Chi ha inventato il primo aereo?", "risposta": "fratelli wright"},
-    {"domanda": "Che gas utilizza il corpo per respirare?", "risposta": "ossigeno"},
-    {"domanda": "Quanto fa 8 + 12?", "risposta": "20"},
-    {"domanda": "Qual è il numero primo dopo 7?", "risposta": "11"},
-    {"domanda": "Quale animale ha la proboscide?", "risposta": "elefante"},
-    {"domanda": "Che tipo di animale è un pinguino?", "risposta": "uccello"},
-    {"domanda": "Qual è il colore del sangue di un granchio?", "risposta": "blu"},
-    {"domanda": "Chi ha scritto 'Don Chisciotte'?", "risposta": "cervantes"},
-    {"domanda": "Quanti continenti hanno il deserto del Sahara?", "risposta": "1"},
-    {"domanda": "Che numero viene dopo 0?", "risposta": "1"},
-    {"domanda": "Qual è il pianeta più lontano dal Sole?", "risposta": "nettuno"},
-    {"domanda": "Quanti muscoli ha il corpo umano?", "risposta": "650"},
-    {"domanda": "Qual è la capitale della Norvegia?", "risposta": "oslo"},
-    {"domanda": "Che animale vive nel polo nord?", "risposta": "orso polare"},
-    {"domanda": "Quanto fa 20 / 4?", "risposta": "5"},
-    {"domanda": "Quale elemento chimico ha simbolo He?", "risposta": "elio"},
-    {"domanda": "Che animale ha il collo più lungo?", "risposta": "giraffa"},
-    {"domanda": "Quanti litri ci sono in un metro cubo?", "risposta": "1000"},
-    {"domanda": "Che colore ha una mela rossa?", "risposta": "rossa"},
-    {"domanda": "Qual è la capitale della Svezia?", "risposta": "stoccolma"},
-    {"domanda": "Che animale ha il corno sul naso?", "risposta": "rinoceronte"},
-    {"domanda": "Quanto fa 11 x 11?", "risposta": "121"},
-    {"domanda": "Che tipo di animale è un cavallo?", "risposta": "mammifero"},
-    {"domanda": "Chi ha inventato il telegrafo?", "risposta": "morse"},
-    {"domanda": "Qual è la valuta del Regno Unito?", "risposta": "sterlina"},
-    {"domanda": "Che numero viene dopo 19?", "risposta": "20"},
+# ================= LISTA PREMI =================
+premi_list = [
+    "🏆 Premio Leggendario",
+    "🎖 Premio Epico",
+    "🎉 Premio Raro",
+    "💎 50 punti",
+    "💎 100 punti",
+    "🔥 Emoji Epica",
+    "😎 Emoji Rara",
+    "⭐ Boost punti x2",
+    "🍀 Jackpot casuale",
+    "🎰 Slot speciale"
 ]
 
-# Genera domande fittizie aggiuntive fino a 300
-for i in range(len(domande_data) + 1, 250):
-    domande_data.append({"domanda": f"Domanda fittizia #{i}", "risposta": f"risposta{i}"})
+# ================= COG GIOCO =================
+class Gioco(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+        self.current_games = {}
 
-# ================= COMANDI =================
-@bot.command()
-@canale_gioco_check()
-async def gioca(ctx):
-    uid = str(ctx.author.id)
-    punti_data.setdefault(uid, {"punti": 0})
-
-    domanda = random.choice(domande_data)
-    current_questions[uid] = domanda
-
-    embed = discord.Embed(
-        title="🎮 GIOCO UFFICIALE DI OMBRA DEL 130",
-        description=f"👤 {ctx.author.mention}, ecco la tua sfida:\n\n**{domanda['domanda']}**",
-        color=discord.Color.orange(),
-        timestamp=discord.utils.utcnow()
-    )
-    await ctx.send(embed=embed)
-
-@bot.command()
-@canale_gioco_check()
-async def rispondi(ctx, *, risposta_utente):
-    uid = str(ctx.author.id)
-    if uid not in current_questions:
-        await ctx.send("❌ Non hai una domanda attiva. Usa `!gioca` per iniziare.")
-        return
-
-    domanda = current_questions[uid]
-    corretta = domanda["risposta"].lower().strip()
-    risposta_utente = risposta_utente.lower().strip()
-
-    if risposta_utente == corretta:
-        punti_estratti = random.randint(5, 50)
-        punti_data[uid]["punti"] += punti_estratti
+    # ================= COMANDI CEO/DIRETTORE =================
+    @commands.command()
+    @ceo_direttore_check()
+    async def aggiungipunti(self, ctx, member: discord.Member, punti: int):
+        uid = str(member.id)
+        punti_data.setdefault(uid, {"punti": 0, "giochi": 0, "badge": [], "livello": 1})
+        punti_data[uid]["punti"] += punti
         save_punti()
+        await ctx.send(f"✅ Aggiunti {punti} punti a {member.mention}. Totale: {punti_data[uid]['punti']}")
 
-        premio = ""
-        if punti_data[uid]["punti"] >= 500:
-            premio = "🏆 Hai sbloccato il premio LEGENDARIO!"
-        elif punti_data[uid]["punti"] >= 200:
-            premio = "🎖 Hai sbloccato il premio EPICO!"
-        elif punti_data[uid]["punti"] >= 100:
-            premio = "🎉 Hai sbloccato il premio RARO!"
+    @commands.command()
+    @ceo_direttore_check()
+    async def togli_punti(self, ctx, member: discord.Member, punti: int):
+        uid = str(member.id)
+        punti_data.setdefault(uid, {"punti": 0, "giochi": 0, "badge": [], "livello": 1})
+        punti_data[uid]["punti"] = max(0, punti_data[uid]["punti"] - punti)
+        save_punti()
+        await ctx.send(f"⛔ Tolti {punti} punti a {member.mention}. Totale: {punti_data[uid]['punti']}")
 
+    @commands.command()
+    @ceo_direttore_check()
+    async def salvapunti(self, ctx):
+        save_punti()
+        await ctx.send("💾 Tutti i punti sono stati salvati correttamente!")
+
+    # ================= MENU PRINCIPALE =================
+    @commands.command()
+    async def menu(self, ctx):
+        """Mostra il menu principale del gioco"""
+        view = MainMenu(ctx)
         embed = discord.Embed(
-            title="✅ Risposta Corretta!",
-            description=f"🎉 Hai guadagnato **{punti_estratti} punti**!\n💎 Totale punti: **{punti_data[uid]['punti']}**\n{premio}",
-            color=discord.Color.green(),
-            timestamp=discord.utils.utcnow()
+            title="🎮 Menu Principale",
+            description="Scegli un'opzione usando i bottoni!",
+            color=discord.Color.green()
         )
-    else:
-        embed = discord.Embed(
-            title="❌ Risposta Sbagliata!",
-            description=f"La risposta corretta era: **{corretta}**\n💎 Totale punti: **{punti_data[uid]['punti']}**",
-            color=discord.Color.red(),
-            timestamp=discord.utils.utcnow()
-        )
+        await ctx.send(embed=embed, view=view)
 
-    del current_questions[uid]
-    await ctx.send(embed=embed)
+    # ================= MINIGIOCO CORSA =================
+    @commands.command()
+    async def corsa(self, ctx):
+        """Minigioco: corri verso il traguardo"""
+        uid = str(ctx.author.id)
+        punti_data.setdefault(uid, {"punti": 0, "giochi": 0, "badge": [], "livello": 1})
+        self.current_games[uid] = {"posizione": 0, "traguardo": 5}
 
-@bot.command()
-@canale_gioco_check()
-async def punti(ctx, member: discord.Member = None):
-    member = member or ctx.author
-    uid = str(member.id)
-    tot = punti_data.get(uid, {}).get("punti", 0)
-    embed = discord.Embed(
-        title=f"💎 Punti di {member.display_name}",
-        description=f"🏆 Totale punti: **{tot}**",
-        color=discord.Color.blue(),
-        timestamp=discord.utils.utcnow()
-    )
-    await ctx.send(embed=embed)
+        from discord.ui import Button, View
 
-@bot.command()
-@service_check()
-@canale_gioco_check()
-async def aggiungipunti(ctx, member: discord.Member, punti: int):
-    uid = str(member.id)
-    punti_data.setdefault(uid, {"punti": 0})
-    punti_data[uid]["punti"] += punti
-    save_punti()
-    await ctx.send(f"✅ Aggiunti {punti} punti a {member.mention}. Totale: {punti_data[uid]['punti']}")
+        async def muovi(interaction):
+            if interaction.user.id != ctx.author.id:
+                await interaction.response.send_message("❌ Questo non è il tuo gioco!", ephemeral=True)
+                return
+            game = self.current_games[uid]
+            game["posizione"] += 1
+            pos = game["posizione"]
+            traguardo = game["traguardo"]
+            if pos >= traguardo:
+                punti_guadagnati = random.randint(20, 100)
+                punti_data[uid]["punti"] += punti_guadagnati
+                save_punti()
+                del self.current_games[uid]
+                await interaction.response.edit_message(content=f"🎉 Hai raggiunto il traguardo! Punti guadagnati: {punti_guadagnati}", view=None)
+            else:
+                barra = "🏃" + "—" * pos + "🏁" + "—" * (traguardo-pos)
+                await interaction.response.edit_message(content=f"**Corsa:** {barra}", view=view)
 
-@bot.command()
-@service_check()
-@canale_gioco_check()
-async def togli_punti(ctx, member: discord.Member, punti: int):
-    uid = str(member.id)
-    punti_data.setdefault(uid, {"punti": 0})
-    punti_data[uid]["punti"] = max(0, punti_data[uid]["punti"] - punti)
-    save_punti()
-    await ctx.send(f"⛔ Tolti {punti} punti a {member.mention}. Totale: {punti_data[uid]['punti']}")
+        button = Button(label="Muovi", style=discord.ButtonStyle.green)
+        button.callback = muovi
+        view = View()
+        view.add_item(button)
+        barra_iniziale = "🏃" + "—" * 0 + "🏁" + "—" * 5
+        await ctx.send(f"**Corsa:** {barra_iniziale}", view=view)
 
-# ================= AVVIO =================
+
+# ================= MENU DISCORD UI =================
+class MainMenu(discord.ui.View):
+    def __init__(self, ctx):
+        super().__init__(timeout=None)
+        self.ctx = ctx
+
+    @discord.ui.button(label="🎲 Giochi casuali", style=discord.ButtonStyle.green)
+    async def casual_games(self, button: discord.ui.Button, interaction: discord.Interaction):
+        await interaction.response.edit_message(embed=discord.Embed(
+            title="🎲 Giochi casuali",
+            description="1️⃣ Tiro dadi\n2️⃣ Indovina il numero\n3️⃣ Memoria\n4️⃣ Slot machine\n5️⃣ Quiz interattivo",
+            color=discord.Color.orange()
+        ), view=CasualGamesMenu(self.ctx))
+
+    @discord.ui.button(label="🏆 Classifica", style=discord.ButtonStyle.blurple)
+    async def leaderboard(self, button: discord.ui.Button, interaction: discord.Interaction):
+        sorted_users = sorted(punti_data.items(), key=lambda x: x[1]["punti"], reverse=True)
+        descrizione = "\n".join([f"{i+1}. <@{uid}> - {data['punti']} punti" for i, (uid, data) in enumerate(sorted_users[:10])])
+        embed = discord.Embed(title="🏆 Leaderboard Top 10", description=descrizione, color=discord.Color.gold())
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    @discord.ui.button(label="🎁 Premi & Loot Box", style=discord.ButtonStyle.blurple)
+    async def lootbox(self, button: discord.ui.Button, interaction: discord.Interaction):
+        premio = random.choice(premi_list)
+        await interaction.response.edit_message(embed=discord.Embed(
+            title="🎁 Loot Box",
+            description=f"Hai ricevuto: {premio}",
+            color=discord.Color.purple()
+        ), view=self)
+
+    @discord.ui.button(label="📊 Statistiche", style=discord.ButtonStyle.gray)
+    async def stats(self, button: discord.ui.Button, interaction: discord.Interaction):
+        uid = str(interaction.user.id)
+        punti = punti_data.get(uid, {}).get("punti", 0)
+        giochi = punti_data.get(uid, {}).get("giochi", 0)
+        embed = discord.Embed(title=f"📊 Statistiche di {interaction.user.display_name}",
+                              description=f"💎 Punti totali: {punti}\n🎲 Giochi giocati: {giochi}",
+                              color=discord.Color.blue())
+        await interaction.response.edit_message(embed=embed, view=self)
+
+
+class CasualGamesMenu(discord.ui.View):
+    def __init__(self, ctx):
+        super().__init__(timeout=None)
+        self.ctx = ctx
+
+    # -------- TIRO DADI --------
+    @discord.ui.button(label="🎲 Tiro Dadi", style=discord.ButtonStyle.primary)
+    async def dice_game(self, button: discord.ui.Button, interaction: discord.Interaction):
+        dado1 = random.randint(1,6)
+        dado2 = random.randint(1,6)
+        totale = dado1 + dado2
+        uid = str(interaction.user.id)
+        punti_data.setdefault(uid, {"punti": 0, "giochi": 0})
+        punti_data[uid]["punti"] += totale
+        punti_data[uid]["giochi"] += 1
+        save_punti()
+        embed = discord.Embed(title="🎲 Tiro Dadi",
+                              description=f"Hai tirato: {dado1} + {dado2} = {totale}\nTotale punti: {punti_data[uid]['punti']}",
+                              color=discord.Color.green())
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    # -------- INDOVINA IL NUMERO --------
+    @discord.ui.button(label="🔢 Indovina il numero", style=discord.ButtonStyle.primary)
+    async def guess_number(self, button: discord.ui.Button, interaction: discord.Interaction):
+        numero = random.randint(1,20)
+        uid = str(interaction.user.id)
+        punti_data.setdefault(uid, {"punti": 0, "giochi": 0})
+        punti_data[uid]["giochi"] += 1
+
+        await interaction.response.send_message("Indovina un numero tra 1 e 20 usando la chat!", ephemeral=True)
+
+        def check(m):
+            return m.author.id == interaction.user.id and m.content.isdigit()
+
+        try:
+            msg = await bot.wait_for("message", check=check, timeout=15)
+            guess = int(msg.content)
+            if guess == numero:
+                punti_data[uid]["punti"] += 50
+                result_msg = "🎉 Esatto! +50 punti!"
+            elif abs(guess-numero) <= 2:
+                punti_data[uid]["punti"] += 20
+                result_msg = f"✅ Quasi! Il numero era {numero}. +20 punti!"
+            else:
+                result_msg = f"❌ Sbagliato! Il numero era {numero}."
+            save_punti()
+            await interaction.followup.send(result_msg)
+        except asyncio.TimeoutError:
+            await interaction.followup.send(f"⏰ Tempo scaduto! Il numero era {numero}.")
+
+    # -------- MEMORY --------
+    @discord.ui.button(label="🧠 Memory", style=discord.ButtonStyle.primary)
+    async def memory_game(self, button: discord.ui.Button, interaction: discord.Interaction):
+        uid = str(interaction.user.id)
+        punti_data.setdefault(uid, {"punti": 0, "giochi": 0})
+        punti_data[uid]["giochi"] += 1
+        # Creazione griglia memory con emoji
+        emoji_list = ["🍎","🍌","🍒","🍇","🍉","🍋"]*2
+        random.shuffle(emoji_list)
+        board = [emoji_list[i:i+4] for i in range(0, len(emoji_list),4)]
+        display_board = "\n".join([" ".join(row) for row in board])
+        punti_data[uid]["punti"] += 30
+        save_punti()
+        await interaction.response.send_message(f"🧠 Memory Game: Ottimo lavoro! +30 punti\n{display_board}", ephemeral=True)
+
+    # -------- SLOT MACHINE --------
+    @discord.ui.button(label="🎰 Slot Machine", style=discord.ButtonStyle.primary)
+    async def slot_machine(self, button: discord.ui.Button, interaction: discord.Interaction):
+        emojis = ["🍒", "🍋", "🍉", "⭐", "🔔", "💎", "🍀"]
+        risultato = [random.choice(emojis) for _ in range(3)]
+        uid = str(interaction.user.id)
+        punti_data.setdefault(uid, {"punti": 0, "giochi": 0})
+        punti_data[uid]["giochi"] += 1
+        punti_data[uid]["punti"] -= 10  # costo di gioco
+        if len(set(risultato)) == 1:
+            punti_data[uid]["punti"] += 200
+            msg = "🎉 JACKPOT! Hai vinto 200 punti!"
+        elif len(set(risultato)) == 2:
+            punti_data[uid]["punti"] += 50
+            msg = "✅ Hai vinto 50 punti!"
+        else:
+            msg = "❌ Niente punti questa volta. Hai perso 10 punti per il gioco."
+        save_punti()
+        embed = discord.Embed(title="🎰 Slot Machine",
+                              description=f"{' | '.join(risultato)}\n{msg}\nTotale punti: {punti_data[uid]['punti']}",
+                              color=discord.Color.orange())
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    # -------- QUIZ --------
+    @discord.ui.button(label="❓ Quiz", style=discord.ButtonStyle.primary)
+    async def quiz_game(self, button: discord.ui.Button, interaction: discord.Interaction):
+        quiz_list = [
+            {"domanda": "Qual è la capitale d'Italia?", "risposta": "roma"},
+            {"domanda": "Qual è il colore del cielo?", "risposta": "azzurro"},
+            {"domanda": "Chi ha scritto 'La Divina Commedia'?", "risposta": "dante"},
+            {"domanda": "Qual è la capitale della Francia?", "risposta": "parigi"},
+            {"domanda": "Che animale è considerato il re della savana?", "risposta": "leone"},
+            {"domanda": "Quanti continenti ci sono sulla Terra?", "risposta": "7"},
+            {"domanda": "Qual è la capitale dell'Italia?", "risposta": "roma"},
+            {"domanda": "Qual è il fiume più lungo del mondo?", "risposta": "nilo"},
+            {"domanda": "Chi ha scritto 'La Divina Commedia'?", "risposta": "dante"},
+            {"domanda": "Qual è il colore del cielo?", "risposta": "azzurro"},
+            {"domanda": "Quanti giorni ci sono in una settimana?", "risposta": "7"},
+            {"domanda": "Qual è il più grande mammifero terrestre?", "risposta": "elefante"},
+            {"domanda": "Qual è la capitale della Francia?", "risposta": "parigi"},
+            {"domanda": "Chi ha dipinto la Gioconda?", "risposta": "da vinci"},
+            {"domanda": "Quale animale è conosciuto come il re della savana?", "risposta": "leone"},
+            {"domanda": "Quanti continenti ci sono sulla Terra?", "risposta": "7"},
+            {"domanda": "Qual è il pianeta più vicino al Sole?", "risposta": "mercurio"},
+            {"domanda": "Qual è il numero di mesi in un anno?", "risposta": "12"},
+            {"domanda": "Qual è la moneta ufficiale del Giappone?", "risposta": "yen"},
+            {"domanda": "Chi ha scoperto l'America?", "risposta": "cristoforo colombo"},
+            {"domanda": "Qual è la capitale della Germania?", "risposta": "berlino"},
+            {"domanda": "Quale animale produce il miele?", "risposta": "ape"},
+            {"domanda": "Che gas respiriamo principalmente?", "risposta": "ossigeno"},
+            {"domanda": "Qual è la lingua più parlata al mondo?", "risposta": "cinese"},
+            {"domanda": "Chi ha scritto 'I promessi sposi'?", "risposta": "manzoni"},
+            {"domanda": "Che strumento misura la temperatura?", "risposta": "termometro"},
+            {"domanda": "Quante stagioni ci sono in un anno?", "risposta": "4"},
+            {"domanda": "Qual è la capitale della Spagna?", "risposta": "madrid"},
+            {"domanda": "Chi ha inventato il telefono?", "risposta": "bell"},
+            {"domanda": "Qual è il numero atomico dell'ossigeno?", "risposta": "8"},
+            {"domanda": "Che animale ha le strisce bianche e nere?", "risposta": "zebra"},
+            {"domanda": "Qual è la montagna più alta del mondo?", "risposta": "everest"},
+            {"domanda": "Qual è il pianeta più grande del sistema solare?", "risposta": "giove"},
+            {"domanda": "Che numero viene dopo 99?", "risposta": "100"},
+            {"domanda": "Qual è la valuta ufficiale degli Stati Uniti?", "risposta": "dollaro"},
+            {"domanda": "Chi ha scritto 'Romeo e Giulietta'?", "risposta": "shakespeare"},
+            {"domanda": "Qual è il colore del latte?", "risposta": "bianco"},
+            {"domanda": "Che forma ha la Terra?", "risposta": "sfera"},
+            {"domanda": "Quanti denti ha un adulto?", "risposta": "32"},
+            {"domanda": "Qual è l’animale simbolo della Cina?", "risposta": "panda"},
+            {"domanda": "Che animale vive nel polo nord?", "risposta": "orso polare"},
+            {"domanda": "Chi ha inventato la lampadina?", "risposta": "edison"},
+            {"domanda": "Qual è la capitale della Turchia?", "risposta": "ankara"},
+            {"domanda": "Qual è il colore della bandiera italiana?", "risposta": "verde bianco rosso"},
+            {"domanda": "Che numero viene prima del 50?", "risposta": "49"},
+            {"domanda": "Quanti minuti ci sono in un'ora?", "risposta": "60"},
+            {"domanda": "Chi ha inventato il computer?", "risposta": "turing"},
+            {"domanda": "Qual è il più grande oceano del mondo?", "risposta": "oceano pacifico"},
+            {"domanda": "Qual è l'animale più grande del mondo?", "risposta": "balena"},
+            {"domanda": "Quale lingua si parla in Brasile?", "risposta": "portoghese"},
+            {"domanda": "Che animale ha il collo più lungo?", "risposta": "giraffa"},
+            {"domanda": "Che animale ha il corno sul naso?", "risposta": "rinoceronte"},
+            {"domanda": "Quanti oceani ci sono sulla Terra?", "risposta": "5"},
+            {"domanda": "Qual è il simbolo chimico dell'oro?", "risposta": "au"},
+            {"domanda": "Qual è la capitale del Messico?", "risposta": "città del messico"},
+            {"domanda": "Quanti giorni ha febbraio negli anni bisestili?", "risposta": "29"},
+            {"domanda": "Chi ha scritto 'Iliade'?", "risposta": "omero"},
+            {"domanda": "Qual è il simbolo chimico del carbonio?", "risposta": "c"},
+            {"domanda": "Chi ha inventato il telegrafo?", "risposta": "morse"},
+            {"domanda": "Qual è la capitale della Norvegia?", "risposta": "oslo"},
+            {"domanda": "Che numero viene dopo 19?", "risposta": "20"}
+        ]
+        quiz = random.choice(quiz_list)
+        uid = str(interaction.user.id)
+        punti_data.setdefault(uid, {"punti": 0, "giochi": 0})
+        punti_data[uid]["giochi"] += 1
+
+        await interaction.response.send_message(f"❓ **Quiz:** {quiz['domanda']}", ephemeral=True)
+        def check(m):
+            return m.author.id == interaction.user.id
+
+        try:
+            msg = await bot.wait_for("message", check=check, timeout=20)
+            if msg.content.lower().strip() == quiz["risposta"]:
+                punti_data[uid]["punti"] += 50
+                save_punti()
+                await interaction.followup.send("✅ Risposta corretta! +50 punti")
+            else:
+                await interaction.followup.send(f"❌ Risposta sbagliata! La risposta era: {quiz['risposta']}")
+        except asyncio.TimeoutError:
+            await interaction.followup.send(f"⏰ Tempo scaduto! La risposta era: {quiz['risposta']}")
+
+    # -------- CORSA --------
+    @discord.ui.button(label="🏃 Corsa", style=discord.ButtonStyle.primary)
+    async def corsa_game(self, button: discord.ui.Button, interaction: discord.Interaction):
+        from discord.ui import Button, View
+        uid = str(interaction.user.id)
+        punti_data.setdefault(uid, {"punti": 0, "giochi": 0, "badge": [], "livello": 1})
+        punti_data[uid]["giochi"] += 1
+
+        current_games = {uid: {"posizione": 0, "traguardo": 5}}
+
+        async def muovi(interaction):
+            if interaction.user.id != interaction.user.id:
+                await interaction.response.send_message("❌ Questo non è il tuo gioco!", ephemeral=True)
+                return
+            game = current_games[uid]
+            game["posizione"] += 1
+            pos = game["posizione"]
+            traguardo = game["traguardo"]
+            if pos >= traguardo:
+                punti_estratti = random.randint(20, 100)
+                punti_data[uid]["punti"] += punti_estratti
+                save_punti()
+                del current_games[uid]
+                await interaction.response.edit_message(content=f"🎉 Hai raggiunto il traguardo! Punti guadagnati: {punti_estratti}", view=None)
+            else:
+                barra = "🏃" + "—" * pos + "🏁" + "—" * (traguardo-pos)
+                await interaction.response.edit_message(content=f"**Corsa:** {barra}", view=view)
+
+        button_move = Button(label="Muovi", style=discord.ButtonStyle.green)
+        button_move.callback = muovi
+        view = View()
+        view.add_item(button_move)
+        barra_iniziale = "🏃" + "—" * 0 + "🏁" + "—" * 5
+        await interaction.response.send_message(f"**Corsa:** {barra_iniziale}", view=view)
+
+
+
+# ================= REGISTRA COG =================
+bot.add_cog(Gioco(bot))
+
+# ================= AVVIO BOT =================
 bot.run(TOKEN)
