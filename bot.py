@@ -1287,7 +1287,7 @@ class CasualGamesMenu(discord.ui.View):
         button_move.callback = muovi
         view = View()
         view.add_item(button_move)
-        barra_iniziale = "🏃" + "—" * 0 + "🏁" + "—" * 5 (traguardo-pos)
+        barra_iniziale = "🏃" + "—" * 0 + "🏁" + "—" * 5
         await interaction.response.send_message(f"**Corsa:** {barra_iniziale}", view=view)
 
 
