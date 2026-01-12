@@ -1035,12 +1035,12 @@ class MainMenu(discord.ui.View):
 
     @discord.ui.button(label="🎲 Giochi casuali", style=discord.ButtonStyle.green)
     async def casual_games(self, button: discord.ui.Button, interaction: discord.Interaction):
-    embed = discord.Embed(
-        title="🎲 Giochi casuali",
-        description="1️⃣ Tiro dadi\n2️⃣ Indovina il numero\n3️⃣ Memoria\n4️⃣ Slot machine\n5️⃣ Quiz interattivo",
-        color=discord.Color.orange()
-)
-await interaction.response.send_message(embed=embed, view=CasualGamesMenu(self.ctx))
+        embed = discord.Embed(
+            title="🎲 Giochi casuali",
+            description="1️⃣ Tiro dadi\n2️⃣ Indovina il numero\n3️⃣ Memoria\n4️⃣ Slot machine\n5️⃣ Quiz interattivo",
+            color=discord.Color.orange()
+        )
+        await interaction.response.send_message(embed=embed, view=CasualGamesMenu(self.ctx))
 
 
     @discord.ui.button(label="🏆 Classifica", style=discord.ButtonStyle.blurple)
