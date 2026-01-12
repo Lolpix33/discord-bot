@@ -483,7 +483,9 @@ class ServizioView(discord.ui.View):
         DIRETTORE_ROLE_ID = 1426308704759976108
 
     if uid not in staff_data:
-        return await interaction.response.send_message("⚠️ Non sei in servizio", ephemeral=True)
+        return await interaction.response.send_message(
+            "⚠️ Non sei in servizio", ephemeral=True
+        )
 
     # Calcolo durata sessione
     if staff_data[uid].get("inizio"):
