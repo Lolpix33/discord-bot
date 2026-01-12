@@ -482,53 +482,79 @@ class ServizioView(discord.ui.View):
         now = time.time()
         DIRETTORE_ROLE_ID = 1426308704759976108
 
-        if uid not in staff_data or not staff_data[uid]["inizio"]:
-            if staff_data.get(uid, {}).get("pausa"):
-                durata = 0
-            else:
-                return await interaction.response.send_message(
-                    "⚠️ Non sei in servizio", ephemeral=True
-                )
-        else:
-            durata = now - staff_data[uid]["inizio"] if not staff_data[uid].get("pausa") else 0
-            staff_data[uid]["totale"] += durata
+    if uid not in staff_data:
+        return await interaction.response.send_message("⚠️ Non sei in servizio", ephemeral=True)
 
-        staff_data[uid]["inizio"] = None
-        staff_data[uid]["pausa"] = False
-        save_staff()
+    # Calcolo durata sessione
+    if staff_data[uid].get("inizio"):
+        # sessione attiva
+        durata = now - staff_data[uid]["inizio"]
+    elif staff_data[uid].get("pausa"):
+        # era in pausa, usa ultima sessione salvata
+        durata = staff_data[uid].get("ultima_sessione", 0)
+    else:
+        durata = 0
 
+    # Aggiungi al totale
+    staff_data[uid]["totale"] += durata
 
-        rank = get_rank(staff_data[uid]["totale"])
+    # Prepara statistiche sessione
+    messaggi = staff_data[uid].get("messaggi", 0)
+    inizio = staff_data[uid].get("inizio_sessione", staff_data[uid].get("inizio", now))
+    fine = now
+    start_time_str = discord.utils.format_dt(discord.utils.utcnow() - (now - inizio), style="R")
+    end_time_str = discord.utils.format_dt(discord.utils.utcnow(), style="R")
 
-        embed_owner = discord.Embed(
-            title=f"🔴 {interaction.user.display_name} è uscito dal servizio",
-            description=(
-                f"👮 Staff: {interaction.user.mention}\n"
-                f"⏱ Durata sessione: **{format_time(durata)}**\n"
-                f"⏱ Ore totali: **{format_time(staff_data[uid]['totale'])}**\n"
-                f"🏅 Rank attuale: {rank}"
-            ),
-            color=discord.Color.red(),
-            timestamp=discord.utils.utcnow()
-        )
+    # Resetta sessione
+    staff_data[uid]["inizio"] = None
+    staff_data[uid]["pausa"] = False
+    staff_data[uid]["messaggi"] = 0
+    staff_data[uid]["ultima_sessione"] = 0
+    save_staff()
 
-        try:
-            await interaction.guild.owner.send(embed=embed_owner)
-        except:
-            pass
+    rank = get_rank(staff_data[uid]["totale"])
 
-        direttore_role = interaction.guild.get_role(DIRETTORE_ROLE_ID)
-        if direttore_role:
-            for membro in direttore_role.members:
-                try:
-                    await membro.send(embed=embed_owner)
-                except:
-                    pass
+    # Embed da inviare al proprietario e direttore
+    embed_owner = discord.Embed(
+        title=f"🔴 {interaction.user.display_name} è uscito dal servizio",
+        description=(
+            f"👮 Staff: {interaction.user.mention}\n"
+            f"⏱ Durata sessione: **{format_time(durata)}**\n"
+            f"⏱ Ore totali: **{format_time(staff_data[uid]['totale'])}**\n"
+            f"🏅 Rank attuale: {rank}\n"
+            f"💬 Messaggi inviati: {messaggi}\n"
+            f"🕒 Orario attività: {start_time_str} → {end_time_str}"
+        ),
+        color=discord.Color.red(),
+        timestamp=discord.utils.utcnow()
+    )
 
-        await interaction.response.send_message(
-            f"🔴 Sei uscito dal servizio!\n⏱ Durata sessione: **{format_time(durata)}**\n⏱ Ore totali: **{format_time(staff_data[uid]['totale'])}**\n🏅 Rank attuale: {rank}",
-            ephemeral=True
-        )
+    # Invia all'owner
+    try:
+        await interaction.guild.owner.send(embed=embed_owner)
+    except:
+        pass
+
+    # Invia ai direttori
+    direttore_role = interaction.guild.get_role(DIRETTORE_ROLE_ID)
+    if direttore_role:
+        for membro in direttore_role.members:
+            try:
+                await membro.send(embed=embed_owner)
+            except:
+                pass
+
+    # Messaggio all'utente
+    await interaction.response.send_message(
+        f"🔴 Sei uscito dal servizio!\n"
+        f"⏱ Durata sessione: **{format_time(durata)}**\n"
+        f"⏱ Ore totali: **{format_time(staff_data[uid]['totale'])}**\n"
+        f"💬 Messaggi inviati: {messaggi}\n"
+        f"🕒 Orario attività: {start_time_str} → {end_time_str}\n"
+        f"🏅 Rank attuale: {rank}",
+        ephemeral=True
+    )
+
 
 
 
@@ -1139,9 +1165,8 @@ class CasualGamesMenu(discord.ui.View):
     async def corsa_game(self, button, interaction):
         await self.cog.start_corsa(interaction)
 
-# ================= SETUP =================
-async def setup(bot):
-    await bot.add_cog(Gioco(bot))
+# ================= REGISTRA IL COG GIOCO =================
+bot.add_cog(Gioco(bot))
 
 # ================= AVVIO BOT =================
 bot.run(TOKEN)
