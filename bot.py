@@ -1265,28 +1265,29 @@ class CasualGamesMenu(discord.ui.View):
 
         current_games = {uid: {"posizione": 0, "traguardo": 5}}
 
-        async def muovi(interaction):
-            if interaction.user.id != interaction.user.id:
-                await interaction.response.send_message("❌ Questo non è il tuo gioco!", ephemeral=True)
-                return
-            game = current_games[uid]
-            game["posizione"] += 1
-            pos = game["posizione"]
-            traguardo = game["traguardo"]
-            if pos >= traguardo:
-                punti_estratti = random.randint(20, 100)
-                punti_data[uid]["punti"] += punti_estratti
-                save_punti()
-                del current_games[uid]
-                await (content=f"🎉 Hai raggiunto il traguardo! Punti guadagnati: {punti_estratti}", view=None)
-            else:
-                barra = "🏃" + "—" * pos + "🏁" + "—" * (traguardo-pos)
+    async def muovi(interaction):
+        if interaction.user.id != ctx.author.id:
+            await interaction.response.send_message("❌ Questo non è il tuo gioco!", ephemeral=True)
+            return
+        game = self.current_games[uid]
+        game["posizione"] += 1
+        pos = game["posizione"]
+        traguardo = game["traguardo"]
 
-                await interaction.edit_original_response(
-                await interaction.response.edit_message(content=f"**Corsa:** {barra}", view=view)
-
-                
+        if pos >= traguardo:
+            punti_guadagnati = random.randint(20, 100)
+            punti_data[uid]["punti"] += punti_guadagnati
+            save_punti()
+            del self.current_games[uid]
+            await interaction.response.send_message(
+                content=f"🎉 Hai raggiunto il traguardo! Punti guadagnati: {punti_guadagnati}",
+                view=None
             )
+        else:
+            barra = "🏃" + "—" * pos + "🏁" + "—" * (traguardo - pos)
+            # Correzione qui
+            await interaction.response.edit_message(content=f"**Corsa:** {barra}", view=view)
+
 
 
 
