@@ -949,6 +949,132 @@ class Gioco(commands.Cog):
         self.bot = bot
         self.current_games = {}
 
+    # =============================================
+# ⚡ GESTIONE PUNTI
+# =============================================
+try:
+    with open("punti.json", "r") as f:
+        punti_data = json.load(f)
+except FileNotFoundError:
+    punti_data = {}
+
+def save_punti():
+    with open("punti.json", "w") as f:
+        json.dump(punti_data, f, indent=4)
+
+# =============================================
+# 🎲 VIEW: DADI
+# =============================================
+class DiceView(discord.ui.View):
+    def __init__(self, uid):
+        super().__init__(timeout=60)
+        self.uid = uid
+
+    @discord.ui.button(label="🎲 Tira i dadi", style=discord.ButtonStyle.green)
+    async def roll(self, button: discord.ui.Button, interaction: discord.Interaction):
+        if interaction.user.id != int(self.uid):
+            await interaction.response.send_message("❌ Questo non è il tuo gioco!", ephemeral=True)
+            return
+
+        dado1 = random.randint(1,6)
+        dado2 = random.randint(1,6)
+        totale = dado1 + dado2
+
+        punti_data[self.uid]["punti"] += totale
+        punti_data[self.uid]["giochi"] += 1
+        save_punti()
+
+        await interaction.response.send_message(
+            f"🎲 Hai tirato: {dado1} + {dado2} = {totale}\nTotale punti: {punti_data[self.uid]['punti']}",
+            view=None
+        )
+        self.stop()
+
+# =============================================
+# 🎯 VIEW: TESTA O CROCE
+# =============================================
+class CoinFlipView(discord.ui.View):
+    def __init__(self, uid):
+        super().__init__(timeout=60)
+        self.uid = uid
+
+    @discord.ui.button(label="🪙 Lancia la moneta", style=discord.ButtonStyle.blurple)
+    async def flip(self, button: discord.ui.Button, interaction: discord.Interaction):
+        if interaction.user.id != int(self.uid):
+            await interaction.response.send_message("❌ Questo non è il tuo gioco!", ephemeral=True)
+            return
+
+        risultato = random.choice(["Testa", "Croce"])
+        punti_data[self.uid]["punti"] += 1
+        punti_data[self.uid]["giochi"] += 1
+        save_punti()
+
+        await interaction.response.send_message(
+            f"🪙 È uscito: **{risultato}**\nTotale punti: {punti_data[self.uid]['punti']}",
+            view=None
+        )
+        self.stop()
+
+# =============================================
+# 🃏 VIEW: NUMERO CASUALE
+# =============================================
+class RandomNumberView(discord.ui.View):
+    def __init__(self, uid):
+        super().__init__(timeout=60)
+        self.uid = uid
+
+    @discord.ui.button(label="🔢 Genera numero", style=discord.ButtonStyle.gray)
+    async def number(self, button: discord.ui.Button, interaction: discord.Interaction):
+        if interaction.user.id != int(self.uid):
+            await interaction.response.send_message("❌ Questo non è il tuo gioco!", ephemeral=True)
+            return
+
+        numero = random.randint(1, 100)
+        punti_data[self.uid]["punti"] += numero
+        punti_data[self.uid]["giochi"] += 1
+        save_punti()
+
+        await interaction.response.send_message(
+            f"🔢 Numero generato: {numero}\nTotale punti: {punti_data[self.uid]['punti']}",
+            view=None
+        )
+        self.stop()
+
+# =============================================
+# ⚡ COG GIOCHI
+# =============================================
+class Minigiochi(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+
+    # ---------- COMANDO: DADI ----------
+    @commands.command()
+    async def tiradadi(self, ctx):
+        uid = str(ctx.author.id)
+        punti_data.setdefault(uid, {"punti": 0, "giochi": 0})
+        view = DiceView(uid)
+        await ctx.send("🎲 Clicca il pulsante per tirare i dadi!", view=view)
+
+    # ---------- COMANDO: TESTA O CROCE ----------
+    @commands.command()
+    async def moneta(self, ctx):
+        uid = str(ctx.author.id)
+        punti_data.setdefault(uid, {"punti": 0, "giochi": 0})
+        view = CoinFlipView(uid)
+        await ctx.send("🪙 Clicca il pulsante per lanciare la moneta!", view=view)
+
+    # ---------- COMANDO: NUMERO CASUALE ----------
+    @commands.command()
+    async def numero(self, ctx):
+        uid = str(ctx.author.id)
+        punti_data.setdefault(uid, {"punti": 0, "giochi": 0})
+        view = RandomNumberView(uid)
+        await ctx.send("🔢 Clicca il pulsante per generare un numero!", view=view)
+
+# ---------- SETUP ----------
+def setup(bot):
+    bot.add_cog(Minigiochi(bot))
+
     # ================= COMANDI CEO/DIRETTORE =================
     @commands.command()
     @ceo_direttore_check()
@@ -1306,6 +1432,13 @@ class CasualGamesMenu(discord.ui.View):
         view.add_item(button_move)
         barra_iniziale = "🏃" + "—" * 0 + "🏁" + "—" * 5
         await interaction.response.edit_message(content=f"**Corsa:** {barra}", view=view)
+
+        class DiceView(discord.ui.View):
+    def __init__(self, uid):
+        super().__init__(timeout=60)
+        self.uid = uid
+
+
         
 
 
