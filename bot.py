@@ -1173,7 +1173,8 @@ class CasualGamesMenu(discord.ui.View):
             description=msg + f"\n💎 Punti totali: {punti_data[uid]['punti']}",
             color=discord.Color.purple()
         )
-        await (embed=embed, view=self)
+        await interaction.response.send_message(embed=embed, view=self)
+
 
 
     # -------- QUIZ --------
