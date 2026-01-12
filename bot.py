@@ -897,7 +897,11 @@ async def on_message(message):
 
 
 
+import discord
+from discord.ext import commands
 import asyncio
+import json
+import random
 
 PUNTI_FILE = "punti.json"
 
@@ -923,15 +927,11 @@ def ceo_direttore_check():
         return False
     return commands.check(predicate)
 
-# ================= LISTA PREMI =================
-premi_list = ["🏆 Trofeo", "💎 Gemma", "🎫 Biglietto", "🎮 Skin", "🪙 Monete"]
-
 # ================= COG GIOCO =================
 class Gioco(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.current_games = {}  # Per le corse attive
-        self.bot = bot
 
     # -------- COMANDI CEO/DIRETTORE --------
     @commands.command()
@@ -960,12 +960,11 @@ class Gioco(commands.Cog):
 
     # -------- LEADERBOARD --------
     @commands.command()
-    @ceo_direttore_check()
     async def leaderboard(self, ctx):
         sorted_users = sorted(punti_data.items(), key=lambda x: x[1]["punti"], reverse=True)
         descrizione = "\n".join([f"{i+1}. <@{uid}> - {data['punti']} punti" for i, (uid, data) in enumerate(sorted_users[:10])])
         embed = discord.Embed(title="🏆 Leaderboard Top 10", description=descrizione, color=discord.Color.gold())
-        await ctx.send(embed=embed)  # visibile a tutti
+        await ctx.send(embed=embed)
 
     # -------- MENU PRINCIPALE --------
     @commands.command()
@@ -988,6 +987,7 @@ class Gioco(commands.Cog):
         from discord.ui import Button, View
 
         view = View(timeout=None)
+
         async def muovi_callback(interaction2):
             if interaction2.user.id != interaction.user.id:
                 await interaction2.response.send_message("❌ Questo non è il tuo gioco!", ephemeral=True)
@@ -1032,6 +1032,7 @@ class CasualGamesMenu(discord.ui.View):
         self.cog = cog
         self.ctx = ctx
 
+    # -------- GIOCHI --------
     @discord.ui.button(label="🎲 Tiro Dadi", style=discord.ButtonStyle.primary)
     async def dice_game(self, button, interaction):
         dado1 = random.randint(1,6)
@@ -1134,8 +1135,13 @@ class CasualGamesMenu(discord.ui.View):
         except asyncio.TimeoutError:
             await interaction.followup.send(f"⏰ Tempo scaduto! La risposta era: {quiz['risposta']}")
 
+    @discord.ui.button(label="🏃 Corsa", style=discord.ButtonStyle.primary)
+    async def corsa_game(self, button, interaction):
+        await self.cog.start_corsa(interaction)
+
 # ================= SETUP =================
 async def setup(bot):
     await bot.add_cog(Gioco(bot))
+
 # ================= AVVIO BOT =================
 bot.run(TOKEN)
