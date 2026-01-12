@@ -1016,7 +1016,7 @@ class Gioco(commands.Cog):
 
             else:
                 barra = "🏃" + "—" * pos + "🏁" + "—" * (traguardo-pos)
-                await (content=f"**Corsa:** {barra}", view=view)
+                await (content=f"**Corsa:** {barra}", view==view)
 
         button = Button(label="Muovi", style=discord.ButtonStyle.green)
         button.callback = muovi
