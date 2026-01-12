@@ -1081,7 +1081,6 @@ class CasualGamesMenu(discord.ui.View):
         super().__init__(timeout=None)
         self.ctx = ctx
 
-    # -------- TIRO DADI --------
     @discord.ui.button(label="🎲 Tiro Dadi", style=discord.ButtonStyle.primary)
     async def dice_game(self, button: discord.ui.Button, interaction: discord.Interaction):
         dado1 = random.randint(1,6)
@@ -1092,10 +1091,14 @@ class CasualGamesMenu(discord.ui.View):
         punti_data[uid]["punti"] += totale
         punti_data[uid]["giochi"] += 1
         save_punti()
-        embed = discord.Embed(title="🎲 Tiro Dadi",
-                              description=f"Hai tirato: {dado1} + {dado2} = {totale}\nTotale punti: {punti_data[uid]['punti']}",
-                              color=discord.Color.green())
+        embed = discord.Embed(
+            title="🎲 Tiro Dadi",
+            description=f"Hai tirato: {dado1} + {dado2} = {totale}\nTotale punti: {punti_data[uid]['punti']}",
+            color=discord.Color.green()
+        )
         await interaction.response.send_message(embed=embed, view=self)
+
+
 
 
     # -------- INDOVINA IL NUMERO --------
