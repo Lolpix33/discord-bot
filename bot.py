@@ -899,12 +899,9 @@ async def on_message(message):
 
 import asyncio
 
-# ================= GESTIONE BOT =================
 PUNTI_FILE = "punti.json"
 
 # ================= GESTIONE PUNTI =================
-GESTORE_PUNTI_ROLE_IDS = [SERVICE_ROLE_ID, 1454559530020245504]  # Tu + addetto punti
-
 try:
     with open(PUNTI_FILE, "r") as f:
         punti_data = json.load(f)
@@ -915,172 +912,33 @@ def save_punti():
     with open(PUNTI_FILE, "w") as f:
         json.dump(punti_data, f, indent=4)
 
-def punti_check():
-    async def predicate(ctx):
-        return any(r.id in GESTORE_PUNTI_ROLE_IDS for r in ctx.author.roles) or ctx.author.guild_permissions.administrator
-    return commands.check(predicate)
+# ID CEO e DIRETTORE
+CEO_DIRETTORE_IDS = [1382481167894450319, 1426308704759976108]  
 
 def ceo_direttore_check():
     async def predicate(ctx):
-        allowed_ids = [1382481167894450319,1426308704759976108]  # Inserisci ID CEO e Direttore
-        if ctx.author.id in allowed_ids:
+        if ctx.author.id in CEO_DIRETTORE_IDS or ctx.author.guild_permissions.administrator:
             return True
         await ctx.send("❌ Non hai il permesso di usare questo comando.")
         return False
     return commands.check(predicate)
 
 # ================= LISTA PREMI =================
-premi_list = [
-    "🏆 Premio Leggendario",
-    "🎖 Premio Epico",
-    "🎉 Premio Raro",
-    "💎 50 punti",
-    "💎 100 punti",
-    "🔥 Emoji Epica",
-    "😎 Emoji Rara",
-    "⭐ Boost punti x2",
-    "🍀 Jackpot casuale",
-    "🎰 Slot speciale"
-]
+premi_list = ["🏆 Trofeo", "💎 Gemma", "🎫 Biglietto", "🎮 Skin", "🪙 Monete"]
 
 # ================= COG GIOCO =================
 class Gioco(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.current_games = {}
-
-    # =============================================
-# ⚡ GESTIONE PUNTI
-# =============================================
-try:
-    with open("punti.json", "r") as f:
-        punti_data = json.load(f)
-except FileNotFoundError:
-    punti_data = {}
-
-def save_punti():
-    with open("punti.json", "w") as f:
-        json.dump(punti_data, f, indent=4)
-
-# =============================================
-# 🎲 VIEW: DADI
-# =============================================
-class DiceView(discord.ui.View):
-    def __init__(self, uid):
-        super().__init__(timeout=60)
-        self.uid = uid
-
-    @discord.ui.button(label="🎲 Tira i dadi", style=discord.ButtonStyle.green)
-    async def roll(self, button: discord.ui.Button, interaction: discord.Interaction):
-        if interaction.user.id != int(self.uid):
-            await interaction.response.send_message("❌ Questo non è il tuo gioco!", ephemeral=True)
-            return
-
-        dado1 = random.randint(1,6)
-        dado2 = random.randint(1,6)
-        totale = dado1 + dado2
-
-        punti_data[self.uid]["punti"] += totale
-        punti_data[self.uid]["giochi"] += 1
-        save_punti()
-
-        await interaction.response.send_message(
-            f"🎲 Hai tirato: {dado1} + {dado2} = {totale}\nTotale punti: {punti_data[self.uid]['punti']}",
-            view=None
-        )
-        self.stop()
-
-# =============================================
-# 🎯 VIEW: TESTA O CROCE
-# =============================================
-class CoinFlipView(discord.ui.View):
-    def __init__(self, uid):
-        super().__init__(timeout=60)
-        self.uid = uid
-
-    @discord.ui.button(label="🪙 Lancia la moneta", style=discord.ButtonStyle.blurple)
-    async def flip(self, button: discord.ui.Button, interaction: discord.Interaction):
-        if interaction.user.id != int(self.uid):
-            await interaction.response.send_message("❌ Questo non è il tuo gioco!", ephemeral=True)
-            return
-
-        risultato = random.choice(["Testa", "Croce"])
-        punti_data[self.uid]["punti"] += 1
-        punti_data[self.uid]["giochi"] += 1
-        save_punti()
-
-        await interaction.response.send_message(
-            f"🪙 È uscito: **{risultato}**\nTotale punti: {punti_data[self.uid]['punti']}",
-            view=None
-        )
-        self.stop()
-
-# =============================================
-# 🃏 VIEW: NUMERO CASUALE
-# =============================================
-class RandomNumberView(discord.ui.View):
-    def __init__(self, uid):
-        super().__init__(timeout=60)
-        self.uid = uid
-
-    @discord.ui.button(label="🔢 Genera numero", style=discord.ButtonStyle.gray)
-    async def number(self, button: discord.ui.Button, interaction: discord.Interaction):
-        if interaction.user.id != int(self.uid):
-            await interaction.response.send_message("❌ Questo non è il tuo gioco!", ephemeral=True)
-            return
-
-        numero = random.randint(1, 100)
-        punti_data[self.uid]["punti"] += numero
-        punti_data[self.uid]["giochi"] += 1
-        save_punti()
-
-        await interaction.response.send_message(
-            f"🔢 Numero generato: {numero}\nTotale punti: {punti_data[self.uid]['punti']}",
-            view=None
-        )
-        self.stop()
-
-# =============================================
-# ⚡ COG GIOCHI
-# =============================================
-class Minigiochi(commands.Cog):
-    def __init__(self, bot):
+        self.current_games = {}  # Per le corse attive
         self.bot = bot
 
-    # ---------- COMANDO: DADI ----------
-    @commands.command()
-    async def tiradadi(self, ctx):
-        uid = str(ctx.author.id)
-        punti_data.setdefault(uid, {"punti": 0, "giochi": 0})
-        view = DiceView(uid)
-        await ctx.send("🎲 Clicca il pulsante per tirare i dadi!", view=view)
-
-    # ---------- COMANDO: TESTA O CROCE ----------
-    @commands.command()
-    async def moneta(self, ctx):
-        uid = str(ctx.author.id)
-        punti_data.setdefault(uid, {"punti": 0, "giochi": 0})
-        view = CoinFlipView(uid)
-        await ctx.send("🪙 Clicca il pulsante per lanciare la moneta!", view=view)
-
-    # ---------- COMANDO: NUMERO CASUALE ----------
-    @commands.command()
-    async def numero(self, ctx):
-        uid = str(ctx.author.id)
-        punti_data.setdefault(uid, {"punti": 0, "giochi": 0})
-        view = RandomNumberView(uid)
-        await ctx.send("🔢 Clicca il pulsante per generare un numero!", view=view)
-
-# ---------- SETUP ----------
-def setup(bot):
-    bot.add_cog(Minigiochi(bot))
-
-    # ================= COMANDI CEO/DIRETTORE =================
+    # -------- COMANDI CEO/DIRETTORE --------
     @commands.command()
     @ceo_direttore_check()
     async def aggiungipunti(self, ctx, member: discord.Member, punti: int):
         uid = str(member.id)
-        punti_data.setdefault(uid, {"punti": 0, "giochi": 0, "badge": [], "livello": 1})
+        punti_data.setdefault(uid, {"punti": 0, "giochi": 0})
         punti_data[uid]["punti"] += punti
         save_punti()
         await ctx.send(f"✅ Aggiunti {punti} punti a {member.mention}. Totale: {punti_data[uid]['punti']}")
@@ -1089,7 +947,7 @@ def setup(bot):
     @ceo_direttore_check()
     async def togli_punti(self, ctx, member: discord.Member, punti: int):
         uid = str(member.id)
-        punti_data.setdefault(uid, {"punti": 0, "giochi": 0, "badge": [], "livello": 1})
+        punti_data.setdefault(uid, {"punti": 0, "giochi": 0})
         punti_data[uid]["punti"] = max(0, punti_data[uid]["punti"] - punti)
         save_punti()
         await ctx.send(f"⛔ Tolti {punti} punti a {member.mention}. Totale: {punti_data[uid]['punti']}")
@@ -1100,148 +958,106 @@ def setup(bot):
         save_punti()
         await ctx.send("💾 Tutti i punti sono stati salvati correttamente!")
 
-    # ================= MENU PRINCIPALE =================
+    # -------- LEADERBOARD --------
+    @commands.command()
+    @ceo_direttore_check()
+    async def leaderboard(self, ctx):
+        sorted_users = sorted(punti_data.items(), key=lambda x: x[1]["punti"], reverse=True)
+        descrizione = "\n".join([f"{i+1}. <@{uid}> - {data['punti']} punti" for i, (uid, data) in enumerate(sorted_users[:10])])
+        embed = discord.Embed(title="🏆 Leaderboard Top 10", description=descrizione, color=discord.Color.gold())
+        await ctx.send(embed=embed)  # visibile a tutti
+
+    # -------- MENU PRINCIPALE --------
     @commands.command()
     async def menu(self, ctx):
-        """Mostra il menu principale del gioco"""
-        view = MainMenu(ctx)
         embed = discord.Embed(
             title="🎮 GIOCHI DI OMBRA DEL 130!",
-            description="MODALITÀ INNOVATIVA DI GIOCARE PROVA ORA ANCHE TU I NUOVI MINIGIOCHI!",
+            description="Seleziona un gioco dal menu interattivo qui sotto!",
             color=discord.Color.green()
         )
+        view = MainMenu(self, ctx)
         await ctx.send(embed=embed, view=view)
 
-    # ================= MINIGIOCO CORSA =================
-    @commands.command()
-    async def corsa(self, ctx):
-        """Minigioco: corri verso il traguardo"""
-        uid = str(ctx.author.id)
-        punti_data.setdefault(uid, {"punti": 0, "giochi": 0, "badge": [], "livello": 1})
-        self.current_games[uid] = {"posizione": 0, "traguardo": 5}
+    # -------- MINIGIOCHI INTERATTIVI --------
+    async def start_corsa(self, interaction):
+        uid = str(interaction.user.id)
+        punti_data.setdefault(uid, {"punti":0, "giochi":0})
+        self.current_games[uid] = {"posizione":0, "traguardo":5}
+        punti_data[uid]["giochi"] += 1
 
         from discord.ui import Button, View
 
-        async def muovi(interaction):
-            if interaction.user.id != ctx.author.id:
-                await interaction.response.send_message("❌ Questo non è il tuo gioco!", ephemeral=True)
+        view = View(timeout=None)
+        async def muovi_callback(interaction2):
+            if interaction2.user.id != interaction.user.id:
+                await interaction2.response.send_message("❌ Questo non è il tuo gioco!", ephemeral=True)
                 return
             game = self.current_games[uid]
             game["posizione"] += 1
             pos = game["posizione"]
             traguardo = game["traguardo"]
+
             if pos >= traguardo:
-                punti_guadagnati = random.randint(20, 100)
-                punti_data[uid]["punti"] += punti_guadagnati
+                punti = random.randint(20, 100)
+                punti_data[uid]["punti"] += punti
                 save_punti()
                 del self.current_games[uid]
-                await interaction.response.send_message(
-                    content=f"🎉 Hai raggiunto il traguardo! Punti guadagnati: {punti_guadagnati}",
-                    view=None
-                )
-
+                await interaction2.response.edit_message(content=f"🎉 Hai raggiunto il traguardo! Punti guadagnati: {punti}", view=None)
             else:
-                barra = "🏃" + "—" * pos + "🏁" + "—" * (traguardo-pos)
-                await interaction.response.send_message(content=f"**Corsa:** {barra}", view=view)
-
+                barra = "🏃" + "—"*pos + "🏁" + "—"*(traguardo-pos)
+                await interaction2.response.edit_message(content=f"**Corsa:** {barra}", view=view)
 
         button = Button(label="Muovi", style=discord.ButtonStyle.green)
-        button.callback = muovi
-        view = View()
+        button.callback = muovi_callback
         view.add_item(button)
-        barra_iniziale = "🏃" + "—" * 0 + "🏁" + "—" * 5
-        await ctx.send(f"**Corsa:** {barra_iniziale}", view=view)
+        barra_iniziale = "🏃" + "—"*0 + "🏁" + "—"*5
+        await interaction.response.send_message(f"**Corsa:** {barra_iniziale}", view=view)
 
-
-# ================= MENU DISCORD UI =================
+# ================= MENU PRINCIPALE =================
 class MainMenu(discord.ui.View):
-    def __init__(self, ctx):
+    def __init__(self, cog: Gioco, ctx):
         super().__init__(timeout=None)
+        self.cog = cog
         self.ctx = ctx
 
     @discord.ui.button(label="🎲 Giochi casuali", style=discord.ButtonStyle.green)
-    async def casual_games(self, button: discord.ui.Button, interaction: discord.Interaction):
-        embed = discord.Embed(
-            title="🎲 Giochi casuali",
-            description="1️⃣ Tiro dadi\n2️⃣ Indovina il numero\n3️⃣ Memoria\n4️⃣ Slot machine\n5️⃣ Quiz interattivo",
-            color=discord.Color.orange()
-        )
-        await interaction.response.send_message(embed=embed, view=CasualGamesMenu(self.ctx))
+    async def casual_games(self, button, interaction):
+        embed = discord.Embed(title="🎲 Giochi Casuali", description="Seleziona un gioco:", color=discord.Color.orange())
+        await interaction.response.send_message(embed=embed, view=CasualGamesMenu(self.cog, self.ctx))
 
-
-    @discord.ui.button(label="🏆 Classifica", style=discord.ButtonStyle.blurple)
-    async def leaderboard(self, button: discord.ui.Button, interaction: discord.Interaction):
-        sorted_users = sorted(punti_data.items(), key=lambda x: x[1]["punti"], reverse=True)
-        descrizione = "\n".join([f"{i+1}. <@{uid}> - {data['punti']} punti" for i, (uid, data) in enumerate(sorted_users[:10])])
-        embed = discord.Embed(title="🏆 Leaderboard Top 10", description=descrizione, color=discord.Color.gold())
-        await interaction.response.send_message(embed=embed, view=self)
-
-
-    @discord.ui.button(label="🎁 Premi & Loot Box", style=discord.ButtonStyle.blurple)
-    async def lootbox(self, button: discord.ui.Button, interaction: discord.Interaction):
-        premio = random.choice(premi_list)
-        embed = discord.Embed(
-            title="🎁 Loot Box",
-            description=f"Hai ricevuto: {premio}",
-            color=discord.Color.purple()
-        )
-        await interaction.response.send_message(embed=embed, view=self)
-
-
-    @discord.ui.button(label="📊 Statistiche", style=discord.ButtonStyle.gray)
-    async def stats(self, button: discord.ui.Button, interaction: discord.Interaction):
-        uid = str(interaction.user.id)
-        punti = punti_data.get(uid, {}).get("punti", 0)
-        giochi = punti_data.get(uid, {}).get("giochi", 0)
-        embed = discord.Embed(
-            title=f"📊 Statistiche di {interaction.user.display_name}",
-            description=f"💎 Punti totali: {punti}\n🎲 Giochi giocati: {giochi}",
-            color=discord.Color.blue()
-        )
-        await interaction.response.send_message(embed=embed, view=self)
-
-
-
+# ================= CASUAL GAMES MENU =================
 class CasualGamesMenu(discord.ui.View):
-    def __init__(self, ctx):
+    def __init__(self, cog: Gioco, ctx):
         super().__init__(timeout=None)
+        self.cog = cog
         self.ctx = ctx
 
     @discord.ui.button(label="🎲 Tiro Dadi", style=discord.ButtonStyle.primary)
-    async def dice_game(self, button: discord.ui.Button, interaction: discord.Interaction):
+    async def dice_game(self, button, interaction):
         dado1 = random.randint(1,6)
         dado2 = random.randint(1,6)
         totale = dado1 + dado2
         uid = str(interaction.user.id)
-        punti_data.setdefault(uid, {"punti": 0, "giochi": 0})
+        punti_data.setdefault(uid, {"punti":0, "giochi":0})
         punti_data[uid]["punti"] += totale
-        punti_data[uid]["giochi"] += 1
+        punti_data[uid]["giochi"] +=1
         save_punti()
-        embed = discord.Embed(
-            title="🎲 Tiro Dadi",
-            description=f"Hai tirato: {dado1} + {dado2} = {totale}\nTotale punti: {punti_data[uid]['punti']}",
-            color=discord.Color.green()
-        )
-        await interaction.response.send_message(embed=embed, view=self)
+        embed = discord.Embed(title="🎲 Tiro Dadi", description=f"Hai tirato: {dado1} + {dado2} = {totale}\nTotale punti: {punti_data[uid]['punti']}", color=discord.Color.green())
+        await interaction.response.send_message(embed=embed)
 
-
-
-
-    # -------- INDOVINA IL NUMERO --------
     @discord.ui.button(label="🔢 Indovina il numero", style=discord.ButtonStyle.primary)
-    async def guess_number(self, button: discord.ui.Button, interaction: discord.Interaction):
+    async def guess_number(self, button, interaction):
         numero = random.randint(1,20)
         uid = str(interaction.user.id)
-        punti_data.setdefault(uid, {"punti": 0, "giochi": 0})
-        punti_data[uid]["giochi"] += 1
-
-        await interaction.response.send_message("Indovina un numero tra 1 e 20 usando la chat!", ephemeral=True)
+        punti_data.setdefault(uid, {"punti":0, "giochi":0})
+        punti_data[uid]["giochi"] +=1
+        await interaction.response.send_message("Indovina un numero tra 1 e 20! Scrivilo in chat...", ephemeral=True)
 
         def check(m):
             return m.author.id == interaction.user.id and m.content.isdigit()
 
         try:
-            msg = await bot.wait_for("message", check=check, timeout=15)
+            msg = await self.cog.bot.wait_for("message", check=check, timeout=15)
             guess = int(msg.content)
             if guess == numero:
                 punti_data[uid]["punti"] += 50
@@ -1256,202 +1072,70 @@ class CasualGamesMenu(discord.ui.View):
         except asyncio.TimeoutError:
             await interaction.followup.send(f"⏰ Tempo scaduto! Il numero era {numero}.")
 
-    # -------- MEMORY --------
     @discord.ui.button(label="🧠 Memory", style=discord.ButtonStyle.primary)
-    async def memory_game(self, button: discord.ui.Button, interaction: discord.Interaction):
+    async def memory_game(self, button, interaction):
         uid = str(interaction.user.id)
-        punti_data.setdefault(uid, {"punti": 0, "giochi": 0})
-        punti_data[uid]["giochi"] += 1
-        # Creazione griglia memory con emoji
-        emoji_list = ["🍎","🍌","🍒","🍇","🍉","🍋"]*2
-        random.shuffle(emoji_list)
-        board = [emoji_list[i:i+4] for i in range(0, len(emoji_list),4)]
+        punti_data.setdefault(uid, {"punti":0, "giochi":0})
+        punti_data[uid]["giochi"] +=1
+        emojis = ["🍎","🍌","🍒","🍇","🍉","🍋"]*2
+        random.shuffle(emojis)
+        board = [emojis[i:i+4] for i in range(0, len(emojis),4)]
         display_board = "\n".join([" ".join(row) for row in board])
         punti_data[uid]["punti"] += 30
         save_punti()
-        await interaction.response.send_message(f"🧠 Memory Game: Ottimo lavoro! +30 punti\n{display_board}", ephemeral=True)
+        await interaction.response.send_message(f"🧠 Memory Game: +30 punti!\n{display_board}", ephemeral=True)
 
-    # -------- SLOT MACHINE --------
     @discord.ui.button(label="🎰 Slot Machine", style=discord.ButtonStyle.primary)
-    async def slot_machine(self, button: discord.ui.Button, interaction: discord.Interaction):
-        emojis = ["🍒", "🍋", "🍉", "⭐", "🔔", "💎", "🍀"]
-        risultato = [random.choice(emojis) for _ in range(3)]
+    async def slot_machine(self, button, interaction):
         uid = str(interaction.user.id)
-        punti_data.setdefault(uid, {"punti": 0, "giochi": 0})
-        punti_data[uid]["giochi"] += 1
-        punti_data[uid]["punti"] -= 10  # costo di gioco
-
-        # Verifica vincita
-        if len(set(risultato)) == 1:
-            vincita = random.randint(50, 150)
+        punti_data.setdefault(uid, {"punti":0, "giochi":0})
+        punti_data[uid]["giochi"] +=1
+        emojis = ["🍒","🍋","🍉","⭐","🔔","💎","🍀"]
+        risultato = [random.choice(emojis) for _ in range(3)]
+        punti_data[uid]["punti"] -= 10
+        if len(set(risultato))==1:
+            vincita = random.randint(50,150)
             punti_data[uid]["punti"] += vincita
             msg = f"🎉 JACKPOT! Hai vinto {vincita} punti!\n{' | '.join(risultato)}"
-        elif len(set(risultato)) == 2:
-            vincita = random.randint(10, 30)
+        elif len(set(risultato))==2:
+            vincita = random.randint(10,30)
             punti_data[uid]["punti"] += vincita
-            msg = f"✅ Piccola vincita! Hai guadagnato {vincita} punti\n{' | '.join(risultato)}"
+            msg = f"✅ Piccola vincita! +{vincita} punti\n{' | '.join(risultato)}"
         else:
             msg = f"❌ Peccato! Non hai vinto punti\n{' | '.join(risultato)}"
-
         save_punti()
-        embed = discord.Embed(
-            title="🎰 Slot Machine",
-            description=msg + f"\n💎 Punti totali: {punti_data[uid]['punti']}",
-            color=discord.Color.purple()
-        )
-        await interaction.response.send_message(embed=embed, view=self)
+        embed = discord.Embed(title="🎰 Slot Machine", description=msg + f"\nTotale punti: {punti_data[uid]['punti']}", color=discord.Color.purple())
+        await interaction.response.send_message(embed=embed)
 
-
-
-    # -------- QUIZ --------
     @discord.ui.button(label="❓ Quiz", style=discord.ButtonStyle.primary)
-    async def quiz_game(self, button: discord.ui.Button, interaction: discord.Interaction):
+    async def quiz_game(self, button, interaction):
         quiz_list = [
             {"domanda": "Qual è la capitale d'Italia?", "risposta": "roma"},
-            {"domanda": "Qual è il colore del cielo?", "risposta": "azzurro"},
             {"domanda": "Chi ha scritto 'La Divina Commedia'?", "risposta": "dante"},
             {"domanda": "Qual è la capitale della Francia?", "risposta": "parigi"},
-            {"domanda": "Che animale è considerato il re della savana?", "risposta": "leone"},
-            {"domanda": "Quanti continenti ci sono sulla Terra?", "risposta": "7"},
-            {"domanda": "Qual è la capitale dell'Italia?", "risposta": "roma"},
-            {"domanda": "Qual è il fiume più lungo del mondo?", "risposta": "nilo"},
-            {"domanda": "Chi ha scritto 'La Divina Commedia'?", "risposta": "dante"},
-            {"domanda": "Qual è il colore del cielo?", "risposta": "azzurro"},
-            {"domanda": "Quanti giorni ci sono in una settimana?", "risposta": "7"},
-            {"domanda": "Qual è il più grande mammifero terrestre?", "risposta": "elefante"},
-            {"domanda": "Qual è la capitale della Francia?", "risposta": "parigi"},
-            {"domanda": "Chi ha dipinto la Gioconda?", "risposta": "da vinci"},
-            {"domanda": "Quale animale è conosciuto come il re della savana?", "risposta": "leone"},
-            {"domanda": "Quanti continenti ci sono sulla Terra?", "risposta": "7"},
-            {"domanda": "Qual è il pianeta più vicino al Sole?", "risposta": "mercurio"},
-            {"domanda": "Qual è il numero di mesi in un anno?", "risposta": "12"},
-            {"domanda": "Qual è la moneta ufficiale del Giappone?", "risposta": "yen"},
-            {"domanda": "Chi ha scoperto l'America?", "risposta": "cristoforo colombo"},
-            {"domanda": "Qual è la capitale della Germania?", "risposta": "berlino"},
-            {"domanda": "Quale animale produce il miele?", "risposta": "ape"},
-            {"domanda": "Che gas respiriamo principalmente?", "risposta": "ossigeno"},
-            {"domanda": "Qual è la lingua più parlata al mondo?", "risposta": "cinese"},
-            {"domanda": "Chi ha scritto 'I promessi sposi'?", "risposta": "manzoni"},
-            {"domanda": "Che strumento misura la temperatura?", "risposta": "termometro"},
-            {"domanda": "Quante stagioni ci sono in un anno?", "risposta": "4"},
-            {"domanda": "Qual è la capitale della Spagna?", "risposta": "madrid"},
-            {"domanda": "Chi ha inventato il telefono?", "risposta": "bell"},
-            {"domanda": "Qual è il numero atomico dell'ossigeno?", "risposta": "8"},
-            {"domanda": "Che animale ha le strisce bianche e nere?", "risposta": "zebra"},
-            {"domanda": "Qual è la montagna più alta del mondo?", "risposta": "everest"},
-            {"domanda": "Qual è il pianeta più grande del sistema solare?", "risposta": "giove"},
-            {"domanda": "Che numero viene dopo 99?", "risposta": "100"},
-            {"domanda": "Qual è la valuta ufficiale degli Stati Uniti?", "risposta": "dollaro"},
-            {"domanda": "Chi ha scritto 'Romeo e Giulietta'?", "risposta": "shakespeare"},
-            {"domanda": "Qual è il colore del latte?", "risposta": "bianco"},
-            {"domanda": "Che forma ha la Terra?", "risposta": "sfera"},
-            {"domanda": "Quanti denti ha un adulto?", "risposta": "32"},
-            {"domanda": "Qual è l’animale simbolo della Cina?", "risposta": "panda"},
-            {"domanda": "Che animale vive nel polo nord?", "risposta": "orso polare"},
-            {"domanda": "Chi ha inventato la lampadina?", "risposta": "edison"},
-            {"domanda": "Qual è la capitale della Turchia?", "risposta": "ankara"},
-            {"domanda": "Qual è il colore della bandiera italiana?", "risposta": "verde bianco rosso"},
-            {"domanda": "Che numero viene prima del 50?", "risposta": "49"},
-            {"domanda": "Quanti minuti ci sono in un'ora?", "risposta": "60"},
-            {"domanda": "Chi ha inventato il computer?", "risposta": "turing"},
-            {"domanda": "Qual è il più grande oceano del mondo?", "risposta": "oceano pacifico"},
-            {"domanda": "Qual è l'animale più grande del mondo?", "risposta": "balena"},
-            {"domanda": "Quale lingua si parla in Brasile?", "risposta": "portoghese"},
-            {"domanda": "Che animale ha il collo più lungo?", "risposta": "giraffa"},
-            {"domanda": "Che animale ha il corno sul naso?", "risposta": "rinoceronte"},
-            {"domanda": "Quanti oceani ci sono sulla Terra?", "risposta": "5"},
-            {"domanda": "Qual è il simbolo chimico dell'oro?", "risposta": "au"},
-            {"domanda": "Qual è la capitale del Messico?", "risposta": "città del messico"},
-            {"domanda": "Quanti giorni ha febbraio negli anni bisestili?", "risposta": "29"},
-            {"domanda": "Chi ha scritto 'Iliade'?", "risposta": "omero"},
-            {"domanda": "Qual è il simbolo chimico del carbonio?", "risposta": "c"},
-            {"domanda": "Chi ha inventato il telegrafo?", "risposta": "morse"},
-            {"domanda": "Qual è la capitale della Norvegia?", "risposta": "oslo"},
-            {"domanda": "Che numero viene dopo 19?", "risposta": "20"}
         ]
         quiz = random.choice(quiz_list)
         uid = str(interaction.user.id)
-        punti_data.setdefault(uid, {"punti": 0, "giochi": 0})
-        punti_data[uid]["giochi"] += 1
+        punti_data.setdefault(uid, {"punti":0, "giochi":0})
+        punti_data[uid]["giochi"] +=1
+        await interaction.response.send_message(f"❓ Quiz: {quiz['domanda']}", ephemeral=True)
 
-        await interaction.response.send_message(f"❓ **Quiz:** {quiz['domanda']}", ephemeral=True)
         def check(m):
             return m.author.id == interaction.user.id
 
         try:
-            msg = await bot.wait_for("message", check=check, timeout=20)
+            msg = await self.cog.bot.wait_for("message", check=check, timeout=20)
             if msg.content.lower().strip() == quiz["risposta"]:
                 punti_data[uid]["punti"] += 50
                 save_punti()
                 await interaction.followup.send("✅ Risposta corretta! +50 punti")
             else:
-                await interaction.followup.send(f"❌ Risposta sbagliata! La risposta era: {quiz['risposta']}")
+                await interaction.followup.send(f"❌ Sbagliato! La risposta era: {quiz['risposta']}")
         except asyncio.TimeoutError:
             await interaction.followup.send(f"⏰ Tempo scaduto! La risposta era: {quiz['risposta']}")
 
-    # -------- CORSA --------
-    @discord.ui.button(label="🏃 Corsa", style=discord.ButtonStyle.primary)
-    async def corsa_game(self, button: discord.ui.Button, interaction: discord.Interaction):
-        from discord.ui import Button, View
-        uid = str(interaction.user.id)
-        punti_data.setdefault(uid, {"punti": 0, "giochi": 0, "badge": [], "livello": 1})
-        punti_data[uid]["giochi"] += 1
-
-        current_games = {uid: {"posizione": 0, "traguardo": 5}}
-
-    async def muovi(interaction):
-        if interaction.user.id != ctx.author.id:
-            await interaction.response.send_message("❌ Questo non è il tuo gioco!", ephemeral=True)
-            return
-        game = self.current_games[uid]
-        game["posizione"] += 1
-        pos = game["posizione"]
-        traguardo = game["traguardo"]
-
-        if pos >= traguardo:
-            punti_guadagnati = random.randint(20, 100)
-            punti_data[uid]["punti"] += punti_guadagnati
-            save_punti()
-            del self.current_games[uid]
-            await interaction.response.send_message(
-                content=f"🎉 Hai raggiunto il traguardo! Punti guadagnati: {punti_guadagnati}",
-                view=None
-            )
-        else:
-            barra = "🏃" + "—" * pos + "🏁" + "—" * (traguardo - pos)
-            # Correzione qui
-            await interaction.response.send_message(content=f"**Corsa:** {barra}", view=view)
-            
-
-
-
-
-        button_move = Button(label="Muovi", style=discord.ButtonStyle.green)
-        button_move.callback = muovi
-        view = View()
-        view.add_item(button_move)
-        barra_iniziale = "🏃" + "—" * 0 + "🏁" + "—" * 5
-        await interaction.response.edit_message(content=f"**Corsa:** {barra}", view=view)
-
-        class DiceView(discord.ui.View):
-    def __init__(self, uid):
-        super().__init__(timeout=60)
-        self.uid = uid
-
-
-        
-
-
-
-
-# ================= REGISTRA COG =================
-async def setup():
+# ================= SETUP =================
+async def setup(bot):
     await bot.add_cog(Gioco(bot))
-    await bot.start(TOKEN)
-
-import asyncio
-asyncio.run(setup())
-
-
 # ================= AVVIO BOT =================
 bot.run(TOKEN)
