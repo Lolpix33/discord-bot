@@ -421,38 +421,32 @@ class ServizioView(discord.ui.View):
         now = time.time()
 
         staff_data.setdefault(uid, {
-    "totale": 0,
-    "inizio": None,
-    "pausa": False,
-    "messaggi": 0,
-    "comandi": 0,
-    "dm_gestiti": 0,
-    "vc_minuti": 0
-})
-
+            "totale": 0,
+            "inizio": None,
+            "pausa": False,
+            "messaggi": 0,
+            "comandi": 0,
+            "dm_gestiti": 0,
+            "vc_minuti": 0,
+            "inizio_sessione": None
+        })
 
         if staff_data[uid]["inizio"] and not staff_data[uid].get("pausa"):
-            return await interaction.response.send_message(
-                "⚠️ Sei già in servizio", ephemeral=True
-            )
+            return await interaction.response.send_message("⚠️ Sei già in servizio", ephemeral=True)
 
         staff_data[uid]["inizio"] = now
         staff_data[uid]["pausa"] = False
+        staff_data[uid]["inizio_sessione"] = now
         save_staff()
 
-
-        await interaction.response.send_message(
-            "🟢 **Sei ora IN SERVIZIO**", ephemeral=True
-        )
+        await interaction.response.send_message("🟢 **Sei ora IN SERVIZIO**", ephemeral=True)
 
     @discord.ui.button(label="🟡 Pausa Servizio", style=discord.ButtonStyle.secondary)
     async def servizio_pausa(self, interaction: discord.Interaction, button: discord.ui.Button):
         uid = str(interaction.user.id)
 
         if uid not in staff_data or (not staff_data[uid]["inizio"] and not staff_data[uid].get("pausa")):
-            return await interaction.response.send_message(
-                "⚠️ Non sei in servizio", ephemeral=True
-            )
+            return await interaction.response.send_message("⚠️ Non sei in servizio", ephemeral=True)
 
         if staff_data[uid].get("pausa"):
             # Riprendi servizio
@@ -460,10 +454,9 @@ class ServizioView(discord.ui.View):
             staff_data[uid]["inizio"] = time.time()
             save_staff()
 
-            button.label = "🟡 Pausa Servizio"  # Cambia label bottone
-            await interaction.response.edit_message(view=self)  # Aggiorna la view
+            button.label = "🟡 Pausa Servizio"
+            await interaction.response.edit_message(view=self)
             await interaction.followup.send("🟢 **Hai ripreso il servizio**", ephemeral=True)
-
         else:
             # Metti in pausa
             durata = time.time() - staff_data[uid]["inizio"]
@@ -472,7 +465,7 @@ class ServizioView(discord.ui.View):
             staff_data[uid]["inizio"] = None
             save_staff()
 
-            button.label = "🟢 Riprendi Servizio"  # Cambia label bottone
+            button.label = "🟢 Riprendi Servizio"
             await interaction.response.edit_message(view=self)
             await interaction.followup.send("🟡 **Servizio messo in PAUSA**", ephemeral=True)
 
@@ -482,84 +475,72 @@ class ServizioView(discord.ui.View):
         now = time.time()
         DIRETTORE_ROLE_ID = 1426308704759976108
 
-    if uid not in staff_data:
-        return await interaction.response.send_message(
-            "⚠️ Non sei in servizio", ephemeral=True
+        if uid not in staff_data:
+            return await interaction.response.send_message("⚠️ Non sei in servizio", ephemeral=True)
+
+        # Calcolo durata sessione
+        if staff_data[uid].get("inizio"):
+            durata = now - staff_data[uid]["inizio"]
+        elif staff_data[uid].get("pausa"):
+            durata = staff_data[uid].get("ultima_sessione", 0)
+        else:
+            durata = 0
+
+        staff_data[uid]["totale"] += durata
+
+        # Statistiche sessione
+        messaggi = staff_data[uid].get("messaggi", 0)
+        inizio = staff_data[uid].get("inizio_sessione", now)
+        fine = now
+        start_time_str = discord.utils.format_dt(discord.utils.utcnow() - (now - inizio), style="R")
+        end_time_str = discord.utils.format_dt(discord.utils.utcnow(), style="R")
+
+        # Reset sessione
+        staff_data[uid]["inizio"] = None
+        staff_data[uid]["pausa"] = False
+        staff_data[uid]["messaggi"] = 0
+        staff_data[uid]["ultima_sessione"] = 0
+        save_staff()
+
+        rank = get_rank(staff_data[uid]["totale"])
+
+        # Embed per owner e direttori
+        embed_owner = discord.Embed(
+            title=f"🔴 {interaction.user.display_name} è uscito dal servizio",
+            description=(
+                f"👮 Staff: {interaction.user.mention}\n"
+                f"⏱ Durata sessione: **{format_time(durata)}**\n"
+                f"⏱ Ore totali: **{format_time(staff_data[uid]['totale'])}**\n"
+                f"🏅 Rank attuale: {rank}\n"
+                f"💬 Messaggi inviati: {messaggi}\n"
+                f"🕒 Orario attività: {start_time_str} → {end_time_str}"
+            ),
+            color=discord.Color.red(),
+            timestamp=discord.utils.utcnow()
         )
 
-    # Calcolo durata sessione
-    if staff_data[uid].get("inizio"):
-        # sessione attiva
-        durata = now - staff_data[uid]["inizio"]
-    elif staff_data[uid].get("pausa"):
-        # era in pausa, usa ultima sessione salvata
-        durata = staff_data[uid].get("ultima_sessione", 0)
-    else:
-        durata = 0
+        try:
+            await interaction.guild.owner.send(embed=embed_owner)
+        except:
+            pass
 
-    # Aggiungi al totale
-    staff_data[uid]["totale"] += durata
+        direttore_role = interaction.guild.get_role(DIRETTORE_ROLE_ID)
+        if direttore_role:
+            for membro in direttore_role.members:
+                try:
+                    await membro.send(embed=embed_owner)
+                except:
+                    pass
 
-    # Prepara statistiche sessione
-    messaggi = staff_data[uid].get("messaggi", 0)
-    inizio = staff_data[uid].get("inizio_sessione", staff_data[uid].get("inizio", now))
-    fine = now
-    start_time_str = discord.utils.format_dt(discord.utils.utcnow() - (now - inizio), style="R")
-    end_time_str = discord.utils.format_dt(discord.utils.utcnow(), style="R")
-
-    # Resetta sessione
-    staff_data[uid]["inizio"] = None
-    staff_data[uid]["pausa"] = False
-    staff_data[uid]["messaggi"] = 0
-    staff_data[uid]["ultima_sessione"] = 0
-    save_staff()
-
-    rank = get_rank(staff_data[uid]["totale"])
-
-    # Embed da inviare al proprietario e direttore
-    embed_owner = discord.Embed(
-        title=f"🔴 {interaction.user.display_name} è uscito dal servizio",
-        description=(
-            f"👮 Staff: {interaction.user.mention}\n"
+        await interaction.response.send_message(
+            f"🔴 Sei uscito dal servizio!\n"
             f"⏱ Durata sessione: **{format_time(durata)}**\n"
             f"⏱ Ore totali: **{format_time(staff_data[uid]['totale'])}**\n"
-            f"🏅 Rank attuale: {rank}\n"
             f"💬 Messaggi inviati: {messaggi}\n"
-            f"🕒 Orario attività: {start_time_str} → {end_time_str}"
-        ),
-        color=discord.Color.red(),
-        timestamp=discord.utils.utcnow()
-    )
-
-    # Invia all'owner
-    try:
-        await interaction.guild.owner.send(embed=embed_owner)
-    except:
-        pass
-
-    # Invia ai direttori
-    direttore_role = interaction.guild.get_role(DIRETTORE_ROLE_ID)
-    if direttore_role:
-        for membro in direttore_role.members:
-            try:
-                await membro.send(embed=embed_owner)
-            except:
-                pass
-
-    # Messaggio all'utente
-    await interaction.response.send_message(
-        f"🔴 Sei uscito dal servizio!\n"
-        f"⏱ Durata sessione: **{format_time(durata)}**\n"
-        f"⏱ Ore totali: **{format_time(staff_data[uid]['totale'])}**\n"
-        f"💬 Messaggi inviati: {messaggi}\n"
-        f"🕒 Orario attività: {start_time_str} → {end_time_str}\n"
-        f"🏅 Rank attuale: {rank}",
-        ephemeral=True
-    )
-
-
-
-
+            f"🕒 Orario attività: {start_time_str} → {end_time_str}\n"
+            f"🏅 Rank attuale: {rank}",
+            ephemeral=True
+        )
 
 
 @bot.command()
