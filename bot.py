@@ -1054,12 +1054,12 @@ class MainMenu(discord.ui.View):
     @discord.ui.button(label="🎁 Premi & Loot Box", style=discord.ButtonStyle.blurple)
     async def lootbox(self, button: discord.ui.Button, interaction: discord.Interaction):
         premio = random.choice(premi_list)
-    embed = discord.Embed(
-        title="🎁 Loot Box",
-        description=f"Hai ricevuto: {premio}",
-        color=discord.Color.purple()
-)
-await interaction.response.send_message(embed=embed, view=self)
+        embed = discord.Embed(
+            title="🎁 Loot Box",
+            description=f"Hai ricevuto: {premio}",
+            color=discord.Color.purple()
+        )
+        await interaction.response.send_message(embed=embed, view=self)
 
 
     @discord.ui.button(label="📊 Statistiche", style=discord.ButtonStyle.gray)
@@ -1067,9 +1067,11 @@ await interaction.response.send_message(embed=embed, view=self)
         uid = str(interaction.user.id)
         punti = punti_data.get(uid, {}).get("punti", 0)
         giochi = punti_data.get(uid, {}).get("giochi", 0)
-        embed = discord.Embed(title=f"📊 Statistiche di {interaction.user.display_name}",
-                              description=f"💎 Punti totali: {punti}\n🎲 Giochi giocati: {giochi}",
-                              color=discord.Color.blue())
+        embed = discord.Embed(
+            title=f"📊 Statistiche di {interaction.user.display_name}",
+            description=f"💎 Punti totali: {punti}\n🎲 Giochi giocati: {giochi}",
+            color=discord.Color.blue()
+        )
         await interaction.response.send_message(embed=embed, view=self)
 
 
