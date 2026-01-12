@@ -1095,7 +1095,8 @@ class CasualGamesMenu(discord.ui.View):
         embed = discord.Embed(title="🎲 Tiro Dadi",
                               description=f"Hai tirato: {dado1} + {dado2} = {totale}\nTotale punti: {punti_data[uid]['punti']}",
                               color=discord.Color.green())
-        await (embed=embed, view=self)
+        await interaction.response.send_message(embed=embed, view=self)
+
 
     # -------- INDOVINA IL NUMERO --------
     @discord.ui.button(label="🔢 Indovina il numero", style=discord.ButtonStyle.primary)
