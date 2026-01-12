@@ -1034,27 +1034,32 @@ class MainMenu(discord.ui.View):
 
     @discord.ui.button(label="🎲 Giochi casuali", style=discord.ButtonStyle.green)
     async def casual_games(self, button: discord.ui.Button, interaction: discord.Interaction):
-        await (embed=discord.Embed(
-            title="🎲 Giochi casuali",
-            description="1️⃣ Tiro dadi\n2️⃣ Indovina il numero\n3️⃣ Memoria\n4️⃣ Slot machine\n5️⃣ Quiz interattivo",
-            color=discord.Color.orange()
-        ), view=CasualGamesMenu(self.ctx))
+    embed = discord.Embed(
+        title="🎲 Giochi casuali",
+        description="1️⃣ Tiro dadi\n2️⃣ Indovina il numero\n3️⃣ Memoria\n4️⃣ Slot machine\n5️⃣ Quiz interattivo",
+        color=discord.Color.orange()
+)
+await interaction.response.send_message(embed=embed, view=CasualGamesMenu(self.ctx))
+
 
     @discord.ui.button(label="🏆 Classifica", style=discord.ButtonStyle.blurple)
     async def leaderboard(self, button: discord.ui.Button, interaction: discord.Interaction):
         sorted_users = sorted(punti_data.items(), key=lambda x: x[1]["punti"], reverse=True)
         descrizione = "\n".join([f"{i+1}. <@{uid}> - {data['punti']} punti" for i, (uid, data) in enumerate(sorted_users[:10])])
         embed = discord.Embed(title="🏆 Leaderboard Top 10", description=descrizione, color=discord.Color.gold())
-        await (embed=embed, view=self)
+        await interaction.response.send_message(embed=embed, view=self)
+
 
     @discord.ui.button(label="🎁 Premi & Loot Box", style=discord.ButtonStyle.blurple)
     async def lootbox(self, button: discord.ui.Button, interaction: discord.Interaction):
         premio = random.choice(premi_list)
-        await (embed=discord.Embed(
-            title="🎁 Loot Box",
-            description=f"Hai ricevuto: {premio}",
-            color=discord.Color.purple()
-        ), view=self)
+    embed = discord.Embed(
+        title="🎁 Loot Box",
+        description=f"Hai ricevuto: {premio}",
+        color=discord.Color.purple()
+)
+await interaction.response.send_message(embed=embed, view=self)
+
 
     @discord.ui.button(label="📊 Statistiche", style=discord.ButtonStyle.gray)
     async def stats(self, button: discord.ui.Button, interaction: discord.Interaction):
@@ -1064,7 +1069,8 @@ class MainMenu(discord.ui.View):
         embed = discord.Embed(title=f"📊 Statistiche di {interaction.user.display_name}",
                               description=f"💎 Punti totali: {punti}\n🎲 Giochi giocati: {giochi}",
                               color=discord.Color.blue())
-        await (embed=embed, view=self)
+        await interaction.response.send_message(embed=embed, view=self)
+
 
 
 class CasualGamesMenu(discord.ui.View):
@@ -1277,8 +1283,9 @@ class CasualGamesMenu(discord.ui.View):
                 barra = "🏃" + "—" * pos + "🏁" + "—" * (traguardo-pos)
 
                 await interaction.edit_original_response(
-                content=f"**Corsa:** {barra}",
-                view=view
+                await interaction.response.edit_message(content=f"**Corsa:** {barra}", view=view)
+
+                
             )
 
 
@@ -1303,4 +1310,3 @@ asyncio.run(setup())
 
 # ================= AVVIO BOT =================
 bot.run(TOKEN)
-
