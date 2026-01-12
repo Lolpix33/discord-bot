@@ -1286,7 +1286,8 @@ class CasualGamesMenu(discord.ui.View):
         else:
             barra = "🏃" + "—" * pos + "🏁" + "—" * (traguardo - pos)
             # Correzione qui
-            await interaction.response.edit_message(content=f"**Corsa:** {barra}", view=view)
+            await interaction.response.send_message(content=f"**Corsa:** {barra}", view=view)
+            
 
 
 
@@ -1296,7 +1297,9 @@ class CasualGamesMenu(discord.ui.View):
         view = View()
         view.add_item(button_move)
         barra_iniziale = "🏃" + "—" * 0 + "🏁" + "—" * 5
-        await interaction.response.send_message(f"**Corsa:** {barra_iniziale}", view=view)
+        await interaction.response.edit_message(content=f"**Corsa:** {barra}", view=view)
+        
+
 
 
 
