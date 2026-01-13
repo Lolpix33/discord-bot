@@ -476,34 +476,56 @@ class ServizioView(discord.ui.View):
             return await interaction.response.send_message("⚠️ Non sei in servizio", ephemeral=True)
 
         # Calcola durata sessione
-        durata = now - staff_data[uid]["inizio"]
-        staff_data[uid]["totale"] += durata
+       # Calcola durata sessione
+durata = now - staff_data[uid]["inizio"]
+staff_data[uid]["totale"] += durata
 
-        # Salva timestamp di inizio
-        inizio_sessione = staff_data[uid]["inizio"]
+# Calcola eventuale VC rimasto aperto
+vc_inizio = staff_data[uid].get("vc_inizio")
+if vc_inizio:
+    durata_vc = time.time() - vc_inizio
+    staff_data[uid]["vc_minuti"] += int(durata_vc / 60)
+    staff_data[uid]["vc_inizio"] = None
 
-        # RESET completo
-        staff_data[uid]["inizio"] = None
-        save_staff()
+# Reset variabili temporanee
+    inizio_sessione = staff_data[uid]["inizio"]
+    staff_data[uid]["inizio"] = None
+    staff_data[uid]["pausa"] = False
+    save_staff()
 
-        rank = get_rank(staff_data[uid]["totale"])
+    # Embed di log
+    embed = discord.Embed(
+        title=f"🔴 {interaction.user.display_name} è uscito dal servizio",
+        description=(
+            f"👮 **Staff:** {interaction.user.mention}\n"
+            f"⏱ **Durata sessione:** {format_time(durata)}\n"
+            f"⏱ **Ore totali:** {format_time(staff_data[uid]['totale'])}\n"
+            f"🏅 **Rank attuale:** {get_rank(staff_data[uid]['totale'])}\n"
+            f"💬 **Messaggi inviati:** {staff_data[uid]['messaggi']}\n"
+            f"⚡ **Comandi usati:** {staff_data[uid]['comandi']}\n"
+            f"✉️ **DM gestiti:** {staff_data[uid]['dm_gestiti']}\n"
+            f"🎤 **Minuti in VC:** {staff_data[uid]['vc_minuti']}\n"
+            f"🕒 **Inizio sessione:** {datetime.fromtimestamp(inizio_sessione).strftime('%Y-%m-%d %H:%M:%S')}"
+        ),
+        color=discord.Color.red(),
+        timestamp=discord.utils.utcnow()
+    )
 
-        embed = discord.Embed(
-            title=f"🔴 {interaction.user.display_name} è uscito dal servizio",
-            description=(
-                f"👮 **Staff:** {interaction.user.mention}\n"
-                f"⏱ **Durata sessione:** {format_time(durata)}\n"
-                f"⏱ **Ore totali:** {format_time(staff_data[uid]['totale'])}\n"
-                f"🏅 **Rank attuale:** {rank}\n"
-                f"💬 **Messaggi inviati:** {staff_data[uid]['messaggi']}\n"
-                f"⚡ **Comandi usati:** {staff_data[uid]['comandi']}\n"
-                f"✉️ **DM gestiti:** {staff_data[uid]['dm_gestiti']}\n"
-                f"🎤 **Minuti in VC:** {staff_data[uid]['vc_minuti']}\n"
-                f"🕒 **Inizio sessione:** {datetime.fromtimestamp(inizio_sessione).strftime('%Y-%m-%d %H:%M:%S')}"
-            ),
-            color=discord.Color.red(),
-            timestamp=discord.utils.utcnow()
-        )
+# Notifica Owner e Direttore
+try:
+    await interaction.guild.owner.send(embed=embed)
+except: pass
+
+direttore_role = interaction.guild.get_role(DIRETTORE_ROLE_ID)
+if direttore_role:
+    for membro in direttore_role.members:
+        try:
+            await membro.send(embed=embed)
+        except: pass
+
+# Invia risposta all'utente
+await interaction.response.send_message("🔴 **Sei uscito dal servizio**", ephemeral=True)
+
 
         # DM Owner
         try:
@@ -886,6 +908,55 @@ async def on_message(message):
 
     # FONDAMENTALE per far funzionare i comandi
     await bot.process_commands(message)
+
+    # ================= CANALI VOCE MONITORATI =================
+VC_CHANNEL_IDS = [
+    1278033707457843319,  # ID canale voce 1
+    1278033707457843320,  # ID canale voce 2
+    345678901234567890,
+    1398840059846856804,
+    1454875006692626454,
+    1454209806134022321,
+    1455658052437934222,
+    1453555421691379796,
+    1398056194933002411
+      # ID canale voce 3
+]
+
+@bot.event
+async def on_voice_state_update(member, before, after):
+    if member.bot:
+        return  # Ignora i bot
+
+    uid = str(member.id)
+
+    # Verifica se è staff
+    if uid not in staff_data:
+        return
+
+    # ================= ENTRATA VOCALE =================
+    if (after.channel and after.channel.id in VC_CHANNEL_IDS) and (
+        not before.channel or before.channel.id != after.channel.id
+    ):
+        # Segna l'ingresso in VC
+        staff_data[uid]["vc_inizio"] = time.time()
+        save_staff()
+
+    # ================= USCITA VOCALE =================
+    if (before.channel and before.channel.id in VC_CHANNEL_IDS) and (
+        not after.channel or after.channel.id != before.channel.id
+    ):
+        # Calcola minuti trascorsi
+        inizio = staff_data[uid].get("vc_inizio")
+        if inizio:
+            durata = time.time() - inizio
+            minuti = int(durata / 60)
+            staff_data[uid]["vc_minuti"] += int(durata / 60)  # rimane in minuti                                                   # oppure
+            staff_data[uid]["vc_minuti"] += durata  # se vuoi secondi
+
+            save_staff()
+
+
 
 
 # ================= AVVIO BOT =================
