@@ -477,11 +477,15 @@ class ServizioView(discord.ui.View):
         staff_data[uid]["totale"] += durata
 
         # Calcola eventuale VC rimasto aperto
-        vc_inizio = staff_data[uid].get("vc_inizio")
-        if vc_inizio:
-            durata_vc = time.time() - vc_inizio
-            staff_data[uid]["vc_minuti"] += int(durata_vc / 60)
+       # Calcola minuti trascorsi
+        inizio = staff_data[uid].get("vc_inizio")
+        if inizio:
+            durata = time.time() - inizio  # in secondi
+            minuti = int(durata / 60)      # ora sono minuti interi
+            staff_data[uid]["vc_minuti"] += minuti
             staff_data[uid]["vc_inizio"] = None
+            save_staff()
+
 
         # Reset variabili temporanee
         staff_data[uid]["inizio"] = None
@@ -826,22 +830,20 @@ async def on_ready():
         vetrina_rank_staff.start()
 
 
+# ================= ON_MESSAGE =================
 @bot.event
 async def on_message(message):
-    # Ignora i messaggi del bot
     if message.author.bot:
         return
 
     uid = str(message.author.id)
 
-    # ================= MESSAGGI IN SERVER (conteggio staff) =================
-    if message.guild:
-        if uid in staff_data:
-            if staff_data[uid].get("inizio") and not staff_data[uid].get("pausa"):
-                staff_data[uid]["messaggi"] += 1
-                save_staff()
+    # ---------- MESSAGGI IN SERVER (conteggio staff) ----------
+    if message.guild and uid in staff_data:
+        if staff_data[uid].get("inizio") and not staff_data[uid].get("pausa"):
+            staff_data[uid]["messaggi"] += 1
 
-    # ================= MESSAGGI IN DM =================
+    # ---------- MESSAGGI IN DM ----------
     if isinstance(message.channel, discord.DMChannel):
         staff_channel = bot.get_channel(STAFF_CHANNEL_ID)
 
@@ -852,87 +854,62 @@ async def on_message(message):
                 color=discord.Color.dark_gold(),
                 timestamp=discord.utils.utcnow()
             )
-            embed.add_field(
-                name="👤 Utente",
-                value=f"{message.author} (`{message.author.id}`)",
-                inline=False
-            )
-            embed.add_field(
-                name="💬 Messaggio",
-                value=message.content or "*[Allegato o messaggio vuoto]*",
-                inline=False
-            )
+            embed.add_field(name="👤 Utente", value=f"{message.author} (`{message.author.id}`)", inline=False)
+            embed.add_field(name="💬 Messaggio", value=message.content or "*[Allegato o vuoto]*", inline=False)
             embed.set_thumbnail(url=message.author.display_avatar.url)
             embed.set_footer(text="DM ricevuto • Staff Ombra del 130")
-
             await staff_channel.send(embed=embed)
 
-        # ================= CONTA DM GESTITO =================
+        # Conta DM gestito da uno solo staff in servizio
         for staff_uid, dati in staff_data.items():
             if dati.get("inizio") and not dati.get("pausa"):
                 dati["dm_gestiti"] += 1
-                save_staff()
-                break  # solo UNO staff prende il DM
+                break  # solo uno staff prende il DM
 
-        # ================= RISPOSTA AUTOMATICA =================
+        # Risposta automatica
         try:
             await message.author.send(
-                "✅ **Messaggio ricevuto!**\n\n"
-                "👀 Lo staff sta leggendo la tua richiesta.\n"
-                "⏳ Ti risponderemo il prima possibile."
+                "✅ **Messaggio ricevuto!**\n👀 Lo staff sta leggendo la tua richiesta.\n⏳ Ti risponderemo presto."
             )
         except:
             pass
 
-    # FONDAMENTALE per far funzionare i comandi
+    # Salva tutto alla fine
+    save_staff()
+
+    # ---------- PROCESSA COMANDI ----------
     await bot.process_commands(message)
 
-    # ================= CANALI VOCE MONITORATI =================
-VC_CHANNEL_IDS = [
-    1278033707457843319,  # ID canale voce 1
-    1278033707457843320,  # ID canale voce 2
-    345678901234567890,
-    1398840059846856804,
-    1454875006692626454,
-    1454209806134022321,
-    1455658052437934222,
-    1453555421691379796,
-    1398056194933002411
-      # ID canale voce 3
-]
 
+# ================= ON_VOICE_STATE_UPDATE =================
 @bot.event
 async def on_voice_state_update(member, before, after):
     if member.bot:
-        return  # Ignora i bot
-
-    uid = str(member.id)
-
-    # Verifica se è staff
-    if uid not in staff_data:
         return
 
-    # ================= ENTRATA VOCALE =================
-    if (after.channel and after.channel.id in VC_CHANNEL_IDS) and (
-        not before.channel or before.channel.id != after.channel.id
-    ):
-        # Segna l'ingresso in VC
-        staff_data[uid]["vc_inizio"] = time.time()
-        save_staff()
+    uid = str(member.id)
+    dati = staff_data.get(uid)
+    if not dati:
+        return
 
-    # ================= USCITA VOCALE =================
-    if (before.channel and before.channel.id in VC_CHANNEL_IDS) and (
-        not after.channel or after.channel.id != before.channel.id
-    ):
-        # Calcola minuti trascorsi
-        inizio = staff_data[uid].get("vc_inizio")
-        if inizio:
-            durata = time.time() - inizio
-            minuti = int(durata / 60)
-            staff_data[uid]["vc_minuti"] += int(durata / 60)  # rimane in minuti                                                   # oppure
-            staff_data[uid]["vc_minuti"] += durata  # se vuoi secondi
+    now = time.time()
 
-            save_staff()
+    # ---------- ENTRATA CANALE VOCE ----------
+    if after.channel and after.channel.id in VC_CHANNEL_IDS:
+        if not before.channel or before.channel.id != after.channel.id:
+            dati["vc_inizio"] = now
+
+    # ---------- USCITA CANALE VOCE ----------
+    if before.channel and before.channel.id in VC_CHANNEL_IDS:
+        if not after.channel or after.channel.id != before.channel.id:
+            inizio = dati.get("vc_inizio")
+            if inizio:
+                minuti = int((now - inizio) / 60)
+                dati["vc_minuti"] += minuti
+                dati["vc_inizio"] = None
+
+    # Salva tutto una sola volta alla fine
+    save_staff()
 
 
 
