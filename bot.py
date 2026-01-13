@@ -433,13 +433,12 @@ class ServizioView(discord.ui.View):
             "vc_minuti": 0
         })
 
-        if staff_data[uid]["inizio"] is not None or staff_data[uid]["pausa"]:
+        if staff_data[uid]["inizio"] is not None:
             return await interaction.response.send_message(
-                "⚠️ Sei già in servizio (o in pausa)", ephemeral=True
+                "⚠️ Sei già in servizio", ephemeral=True
             )
 
         staff_data[uid]["inizio"] = now
-        staff_data[uid]["pausa"] = False
         save_staff()
 
         embed = discord.Embed(
@@ -466,37 +465,6 @@ class ServizioView(discord.ui.View):
 
         await interaction.response.send_message("🟢 **Sei ora IN SERVIZIO**", ephemeral=True)
 
-    # ================= PAUSA =================
-    @discord.ui.button(label="🟡 Pausa Servizio", style=discord.ButtonStyle.secondary)
-    async def servizio_pausa(self, interaction: discord.Interaction, button: discord.ui.Button):
-        uid = str(interaction.user.id)
-        now = time.time()
-
-        if uid not in staff_data:
-            return await interaction.response.send_message("⚠️ Non sei in servizio", ephemeral=True)
-
-        # SE sei in pausa → RIPRENDI servizio
-        if staff_data[uid]["pausa"]:
-            staff_data[uid]["pausa"] = False
-            staff_data[uid]["inizio"] = now
-            save_staff()
-
-            button.label = "🟡 Pausa Servizio"
-            await interaction.response.edit_message(view=self)
-            return await interaction.followup.send("🟢 **Hai ripreso il servizio**", ephemeral=True)
-
-        # SE sei in servizio → METTI IN PAUSA
-        if staff_data[uid]["inizio"] is not None:
-            durata = now - staff_data[uid]["inizio"]
-            staff_data[uid]["totale"] += durata
-            staff_data[uid]["inizio"] = None
-            staff_data[uid]["pausa"] = True
-            save_staff()
-
-            button.label = "🟢 Riprendi Servizio"
-            await interaction.response.edit_message(view=self)
-            return await interaction.followup.send("🟡 **Servizio messo in PAUSA**", ephemeral=True)
-
     # ================= ESCI DAL SERVIZIO =================
     @discord.ui.button(label="🔴 Esci dal Servizio", style=discord.ButtonStyle.danger)
     async def servizio_off(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -504,20 +472,15 @@ class ServizioView(discord.ui.View):
         now = time.time()
         DIRETTORE_ROLE_ID = 1426308704759976108
 
-        if uid not in staff_data:
+        if uid not in staff_data or staff_data[uid]["inizio"] is None:
             return await interaction.response.send_message("⚠️ Non sei in servizio", ephemeral=True)
 
-        # Se stavi lavorando (inizio != None) aggiungi il tempo
-        if staff_data[uid]["inizio"] is not None:
-            durata = now - staff_data[uid]["inizio"]
-            staff_data[uid]["totale"] += durata
-        else:
-            # se eri in pausa, la durata della sessione è zero
-            durata = 0
+        # Calcola durata sessione
+        durata = now - staff_data[uid]["inizio"]
+        staff_data[uid]["totale"] += durata
 
         # RESET completo
         staff_data[uid]["inizio"] = None
-        staff_data[uid]["pausa"] = False
         save_staff()
 
         rank = get_rank(staff_data[uid]["totale"])
@@ -548,11 +511,6 @@ class ServizioView(discord.ui.View):
                     await membro.send(embed=embed)
                 except:
                     pass
-
-        # Ripristina label bottone pausa per nuova sessione
-        for child in self.children:
-            if isinstance(child, discord.ui.Button) and child.label in ["🟢 Riprendi Servizio", "🟡 Pausa Servizio"]:
-                child.label = "🟡 Pausa Servizio"
 
         await interaction.response.send_message("🔴 **Sei uscito dal servizio**", ephemeral=True)
 
