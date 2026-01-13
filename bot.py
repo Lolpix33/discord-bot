@@ -422,7 +422,6 @@ class ServizioView(discord.ui.View):
         now = time.time()
         DIRETTORE_ROLE_ID = 1426308704759976108
 
-        # Crea utente se non presente
         staff_data.setdefault(uid, {
             "totale": 0,
             "inizio": None,
@@ -433,18 +432,15 @@ class ServizioView(discord.ui.View):
             "vc_minuti": 0
         })
 
-        # Controllo se già in servizio o in pausa
         if staff_data[uid]["inizio"] is not None or staff_data[uid]["pausa"]:
             return await interaction.response.send_message(
                 "⚠️ Sei già in servizio (o in pausa)", ephemeral=True
             )
 
-        # Avvia servizio
         staff_data[uid]["inizio"] = now
         staff_data[uid]["pausa"] = False
         save_staff()
 
-        # Embed DM
         embed = discord.Embed(
             title="🟢 Entrata in servizio",
             description=f"👮 {interaction.user.mention} è entrato in servizio",
@@ -467,9 +463,7 @@ class ServizioView(discord.ui.View):
                 except:
                     pass
 
-        await interaction.response.send_message(
-            "🟢 **Sei ora IN SERVIZIO**", ephemeral=True
-        )
+        await interaction.response.send_message("🟢 **Sei ora IN SERVIZIO**", ephemeral=True)
 
     # ================= PAUSA =================
     @discord.ui.button(label="🟡 Pausa Servizio", style=discord.ButtonStyle.secondary)
@@ -477,31 +471,29 @@ class ServizioView(discord.ui.View):
         uid = str(interaction.user.id)
 
         if uid not in staff_data or (staff_data[uid]["inizio"] is None and not staff_data[uid]["pausa"]):
-            return await interaction.response.send_message(
-                "⚠️ Non sei in servizio", ephemeral=True
-            )
+            return await interaction.response.send_message("⚠️ Non sei in servizio", ephemeral=True)
 
-        # SE sei in pausa → RIPRENDI servizio
+        # SE sei in pausa → RIPRENDI
         if staff_data[uid]["pausa"]:
             staff_data[uid]["pausa"] = False
-            staff_data[uid]["inizio"] = time.time()  # riprendi conteggio
+            staff_data[uid]["inizio"] = time.time()
             save_staff()
 
             button.label = "🟡 Pausa Servizio"
             await interaction.response.edit_message(view=self)
-            await interaction.followup.send("🟢 **Hai ripreso il servizio**", ephemeral=True)
+            return await interaction.followup.send("🟢 **Hai ripreso il servizio**", ephemeral=True)
 
         # SE sei in servizio → METTI IN PAUSA
         elif staff_data[uid]["inizio"] is not None:
             durata = time.time() - staff_data[uid]["inizio"]
-            staff_data[uid]["totale"] += durata  # aggiungi tempo già lavorato
-            staff_data[uid]["inizio"] = None      # stoppa conteggio
+            staff_data[uid]["totale"] += durata
+            staff_data[uid]["inizio"] = None
             staff_data[uid]["pausa"] = True
             save_staff()
 
             button.label = "🟢 Riprendi Servizio"
             await interaction.response.edit_message(view=self)
-            await interaction.followup.send("🟡 **Servizio messo in PAUSA**", ephemeral=True)
+            return await interaction.followup.send("🟡 **Servizio messo in PAUSA**", ephemeral=True)
 
     # ================= ESCI DAL SERVIZIO =================
     @discord.ui.button(label="🔴 Esci dal Servizio", style=discord.ButtonStyle.danger)
@@ -511,9 +503,7 @@ class ServizioView(discord.ui.View):
         DIRETTORE_ROLE_ID = 1426308704759976108
 
         if uid not in staff_data:
-            return await interaction.response.send_message(
-                "⚠️ Non sei in servizio", ephemeral=True
-            )
+            return await interaction.response.send_message("⚠️ Non sei in servizio", ephemeral=True)
 
         durata = 0
         if staff_data[uid]["inizio"]:
@@ -553,9 +543,7 @@ class ServizioView(discord.ui.View):
                 except:
                     pass
 
-        await interaction.response.send_message(
-            "🔴 **Sei uscito dal servizio**", ephemeral=True
-        )
+        await interaction.response.send_message("🔴 **Sei uscito dal servizio**", ephemeral=True)
 
 
 
