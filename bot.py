@@ -488,10 +488,16 @@ class ServizioView(discord.ui.View):
         embed = discord.Embed(
             title=f"🔴 {interaction.user.display_name} è uscito dal servizio",
             description=(
-                f"👮 Staff: {interaction.user.mention}\n"
-                f"⏱ Durata sessione: **{format_time(durata)}**\n"
-                f"⏱ Ore totali: **{format_time(staff_data[uid]['totale'])}**\n"
-                f"🏅 Rank attuale: {rank}"
+                f"👮 **Staff:** {interaction.user.mention}\n"
+                f"⏱ **Durata sessione:** {format_time(durata)}\n"
+                f"⏱ **Ore totali:** {format_time(staff_data[uid]['totale'])}\n"
+                f"🏅 **Rank attuale:** {rank}\n"
+                f"💬 **Messaggi inviati:** {staff_data[uid]['messaggi']}\n"
+                f"⚡ **Comandi usati:** {staff_data[uid]['comandi']}\n"
+                f"✉️ **DM gestiti:** {staff_data[uid]['dm_gestiti']}\n"
+                f"🎤 **Minuti in VC:** {staff_data[uid]['vc_minuti']}\n"
+                f"⏸ **Pausa effettuata:** {'Sì' if staff_data[uid]['pausa'] else 'No'}\n"
+                f"🕒 **Inizio sessione:** {datetime.fromtimestamp(staff_data[uid].get('inizio', now)).strftime('%Y-%m-%d %H:%M:%S')}"
             ),
             color=discord.Color.red(),
             timestamp=discord.utils.utcnow()
@@ -513,9 +519,6 @@ class ServizioView(discord.ui.View):
                     pass
 
         await interaction.response.send_message("🔴 **Sei uscito dal servizio**", ephemeral=True)
-
-
-
 
 
 
