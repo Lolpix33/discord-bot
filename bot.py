@@ -422,6 +422,7 @@ class ServizioView(discord.ui.View):
         now = time.time()
         DIRETTORE_ROLE_ID = 1426308704759976108
 
+        # Crea utente se non esiste
         staff_data.setdefault(uid, {
             "totale": 0,
             "inizio": None,
@@ -432,11 +433,13 @@ class ServizioView(discord.ui.View):
             "vc_minuti": 0
         })
 
+        # Controllo se già in servizio o in pausa
         if staff_data[uid]["inizio"] is not None or staff_data[uid]["pausa"]:
             return await interaction.response.send_message(
                 "⚠️ Sei già in servizio (o in pausa)", ephemeral=True
             )
 
+        # Avvia servizio
         staff_data[uid]["inizio"] = now
         staff_data[uid]["pausa"] = False
         save_staff()
@@ -473,21 +476,21 @@ class ServizioView(discord.ui.View):
         if uid not in staff_data or (staff_data[uid]["inizio"] is None and not staff_data[uid]["pausa"]):
             return await interaction.response.send_message("⚠️ Non sei in servizio", ephemeral=True)
 
-        # SE sei in pausa → RIPRENDI
+        # Se sei già in pausa → riprendi
         if staff_data[uid]["pausa"]:
             staff_data[uid]["pausa"] = False
-            staff_data[uid]["inizio"] = time.time()
+            staff_data[uid]["inizio"] = time.time()  # riprendi conteggio
             save_staff()
 
             button.label = "🟡 Pausa Servizio"
             await interaction.response.edit_message(view=self)
             return await interaction.followup.send("🟢 **Hai ripreso il servizio**", ephemeral=True)
 
-        # SE sei in servizio → METTI IN PAUSA
+        # Se sei in servizio → metti in pausa
         elif staff_data[uid]["inizio"] is not None:
             durata = time.time() - staff_data[uid]["inizio"]
-            staff_data[uid]["totale"] += durata
-            staff_data[uid]["inizio"] = None
+            staff_data[uid]["totale"] += durata  # aggiungi tempo lavorato fino ad ora
+            staff_data[uid]["inizio"] = None      # stoppa conteggio
             staff_data[uid]["pausa"] = True
             save_staff()
 
@@ -505,11 +508,14 @@ class ServizioView(discord.ui.View):
         if uid not in staff_data:
             return await interaction.response.send_message("⚠️ Non sei in servizio", ephemeral=True)
 
-        durata = 0
+        # Se sei in servizio, aggiungi il tempo della sessione
         if staff_data[uid]["inizio"]:
             durata = now - staff_data[uid]["inizio"]
             staff_data[uid]["totale"] += durata
+        else:
+            durata = 0  # sei in pausa, considera solo il totale accumulato
 
+        # Reset stato
         staff_data[uid]["inizio"] = None
         staff_data[uid]["pausa"] = False
         save_staff()
@@ -542,6 +548,11 @@ class ServizioView(discord.ui.View):
                     await membro.send(embed=embed)
                 except:
                     pass
+
+        # Reset etichetta bottone pausa per la prossima sessione
+        for child in self.children:
+            if isinstance(child, discord.ui.Button) and child.label in ["🟢 Riprendi Servizio", "🟡 Pausa Servizio"]:
+                child.label = "🟡 Pausa Servizio"
 
         await interaction.response.send_message("🔴 **Sei uscito dal servizio**", ephemeral=True)
 
