@@ -470,7 +470,7 @@ class ServizioView(discord.ui.View):
 
     # ================= PAUSA =================
    @discord.ui.button(label="🟡 Pausa Servizio", style=discord.ButtonStyle.secondary)
-        async def servizio_pausa(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def servizio_pausa(self, interaction: discord.Interaction, button: discord.ui.Button):
         uid = str(interaction.user.id)
 
         if uid not in staff_data:
