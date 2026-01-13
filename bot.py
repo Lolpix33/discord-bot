@@ -411,6 +411,7 @@ async def servizio(ctx, stato: str):
         await ctx.reply("❌ NON ESISTE QUESTO COMANDO | DEVI USARE IL PANNELLO IN SERVIZIO STAFF E CLICCARE ENTRA IN SERVIZIO")
 
 # ================= SERVIZIO CON BOTTONI =================
+# ================= SERVIZIO CON BOTTONI =================
 class ServizioView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -426,7 +427,6 @@ class ServizioView(discord.ui.View):
         staff_data.setdefault(uid, {
             "totale": 0,
             "inizio": None,
-            "pausa": False,
             "messaggi": 0,
             "comandi": 0,
             "dm_gestiti": 0,
@@ -479,6 +479,9 @@ class ServizioView(discord.ui.View):
         durata = now - staff_data[uid]["inizio"]
         staff_data[uid]["totale"] += durata
 
+        # Salva timestamp di inizio
+        inizio_sessione = staff_data[uid]["inizio"]
+
         # RESET completo
         staff_data[uid]["inizio"] = None
         save_staff()
@@ -496,8 +499,7 @@ class ServizioView(discord.ui.View):
                 f"⚡ **Comandi usati:** {staff_data[uid]['comandi']}\n"
                 f"✉️ **DM gestiti:** {staff_data[uid]['dm_gestiti']}\n"
                 f"🎤 **Minuti in VC:** {staff_data[uid]['vc_minuti']}\n"
-                f"⏸ **Pausa effettuata:** {'Sì' if staff_data[uid]['pausa'] else 'No'}\n"
-                f"🕒 **Inizio sessione:** {datetime.fromtimestamp(staff_data[uid].get('inizio', now)).strftime('%Y-%m-%d %H:%M:%S')}"
+                f"🕒 **Inizio sessione:** {datetime.fromtimestamp(inizio_sessione).strftime('%Y-%m-%d %H:%M:%S')}"
             ),
             color=discord.Color.red(),
             timestamp=discord.utils.utcnow()
@@ -519,6 +521,7 @@ class ServizioView(discord.ui.View):
                     pass
 
         await interaction.response.send_message("🔴 **Sei uscito dal servizio**", ephemeral=True)
+
 
 
 
