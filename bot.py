@@ -463,6 +463,7 @@ class ServizioView(discord.ui.View):
         await interaction.response.send_message("🟢 **Sei ora IN SERVIZIO**", ephemeral=True)
 
     # ================= ESCI DAL SERVIZIO =================
+    # ================= ESCI DAL SERVIZIO =================
     @discord.ui.button(label="🔴 Esci dal Servizio", style=discord.ButtonStyle.danger)
     async def servizio_off(self, interaction: discord.Interaction, button: discord.ui.Button):
         uid = str(interaction.user.id)
@@ -471,21 +472,17 @@ class ServizioView(discord.ui.View):
         if uid not in staff_data or staff_data[uid]["inizio"] is None:
             return await interaction.response.send_message("⚠️ Non sei in servizio", ephemeral=True)
 
-        # Calcola durata sessione
+        # Calcola durata sessione in secondi
         inizio_sessione = staff_data[uid]["inizio"]
-        durata = now - inizio_sessione
-        staff_data[uid]["totale"] += durata
+        durata_sessione = now - inizio_sessione
+        staff_data[uid]["totale"] += durata_sessione
 
-        # Calcola eventuale VC rimasto aperto
-       # Calcola minuti trascorsi
-        inizio = staff_data[uid].get("vc_inizio")
-        if inizio:
-            durata = time.time() - inizio  # in secondi
-            minuti = int(durata / 60)      # ora sono minuti interi
-            staff_data[uid]["vc_minuti"] += minuti
+        # ---------- CALCOLO VOCE ----------
+        inizio_vc = staff_data[uid].get("vc_inizio")
+        if inizio_vc:
+            durata_vc = now - inizio_vc          # durata in secondi
+            staff_data[uid]["vc_minuti"] += int(durata_vc)  # sommo i secondi
             staff_data[uid]["vc_inizio"] = None
-            save_staff()
-
 
         # Reset variabili temporanee
         staff_data[uid]["inizio"] = None
@@ -497,13 +494,13 @@ class ServizioView(discord.ui.View):
             title=f"🔴 {interaction.user.display_name} è uscito dal servizio",
             description=(
                 f"👮 **Staff:** {interaction.user.mention}\n"
-                f"⏱ **Durata sessione:** {format_time(durata)}\n"
+                f"⏱ **Durata sessione:** {format_time(durata_sessione)}\n"
                 f"⏱ **Ore totali:** {format_time(staff_data[uid]['totale'])}\n"
                 f"🏅 **Rank attuale:** {get_rank(staff_data[uid]['totale'])}\n"
                 f"💬 **Messaggi inviati:** {staff_data[uid]['messaggi']}\n"
                 f"⚡ **Comandi usati:** {staff_data[uid]['comandi']}\n"
                 f"✉️ **DM gestiti:** {staff_data[uid]['dm_gestiti']}\n"
-                f"🎤 **Minuti in VC:** {staff_data[uid]['vc_minuti']}\n"
+                f"🎤 **Secondi in VC:** {format_time(staff_data[uid]['vc_minuti'])}\n"
                 f"🕒 **Inizio sessione:** {datetime.fromtimestamp(inizio_sessione).strftime('%Y-%m-%d %H:%M:%S')}"
             ),
             color=discord.Color.red(),
@@ -526,6 +523,7 @@ class ServizioView(discord.ui.View):
                     pass
 
         await interaction.response.send_message("🔴 **Sei uscito dal servizio**", ephemeral=True)
+
 
 
 
@@ -904,12 +902,12 @@ async def on_voice_state_update(member, before, after):
         if not after.channel or after.channel.id != before.channel.id:
             inizio = dati.get("vc_inizio")
             if inizio:
-                minuti = int((now - inizio) / 60)
-                dati["vc_minuti"] += minuti
+                durata = now - inizio       # durata in secondi
+                dati["vc_minuti"] += durata # qui salviamo i secondi
                 dati["vc_inizio"] = None
 
-    # Salva tutto una sola volta alla fine
     save_staff()
+
 
 
 
