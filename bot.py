@@ -469,7 +469,7 @@ class ServizioView(discord.ui.View):
         )
 
     # ================= PAUSA =================
-    @discord.ui.button(label="🟡 Pausa Servizio", style=discord.ButtonStyle.secondary)
+   @discord.ui.button(label="🟡 Pausa Servizio", style=discord.ButtonStyle.secondary)
         async def servizio_pausa(self, interaction: discord.Interaction, button: discord.ui.Button):
         uid = str(interaction.user.id)
 
@@ -484,8 +484,8 @@ class ServizioView(discord.ui.View):
             staff_data[uid]["inizio"] = time.time()  # riprendi il conteggio
             save_staff()
             button.label = "🟡 Pausa Servizio"
-            await interaction.response.edit_message(view=self)
-            await interaction.followup.send("🟢 **Hai ripreso il servizio**", ephemeral=True)
+            # Rispondi una sola volta e aggiorna la view nello stesso passaggio
+            await interaction.response.edit_message(content="🟢 **Hai ripreso il servizio**", view=self)
 
         # Se sei in servizio → metti in pausa
         elif staff_data[uid]["inizio"] is not None:
@@ -495,13 +495,13 @@ class ServizioView(discord.ui.View):
             staff_data[uid]["pausa"] = True
             save_staff()
             button.label = "🟢 Riprendi Servizio"
-            await interaction.response.edit_message(view=self)
-            await interaction.followup.send("🟡 **Servizio messo in PAUSA**", ephemeral=True)
+            await interaction.response.edit_message(content="🟡 **Servizio messo in PAUSA**", view=self)
 
         else:
-            return await interaction.response.send_message(
+            await interaction.response.send_message(
                 "⚠️ Non sei in servizio", ephemeral=True
             )
+
 
 
         # ▶️ RIPRENDI
