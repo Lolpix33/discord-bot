@@ -770,6 +770,14 @@ async def promemoria_staff():
 
 @tasks.loop(minutes=210)  # 3 ore e mezza
 async def vetrina_rank_staff():
+    now = datetime.now().time()
+    start_time = datetime.strptime("12:00", "%H:%M").time()
+    end_time = datetime.strptime("23:00", "%H:%M").time()
+
+    # Controllo orario
+    if not (start_time <= now <= end_time):
+        return  # esce se siamo fuori dall'orario 12:00-23:00
+
     channel = bot.get_channel(PROMO_CHANNEL_ID)
     if not channel:
         return
