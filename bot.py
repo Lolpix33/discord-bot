@@ -475,40 +475,47 @@ class ServizioView(discord.ui.View):
                 "⚠️ Non sei in servizio", ephemeral=True
             )
 
-        # Se sei già in pausa → riprendi servizio
+        # SE sei in pausa → riprendi servizio
         if staff_data[uid]["pausa"]:
             staff_data[uid]["pausa"] = False
-            staff_data[uid]["inizio"] = time.time()
+            staff_data[uid]["inizio"] = time.time()  # riprendi il conteggio
             save_staff()
-            button.label = "🟡 Pausa Servizio"
-            await interaction.response.edit_message(content="🟢 **Hai ripreso il servizio**", view=self)
 
-        # Se sei in servizio → metti in pausa
+            button.label = "🟡 Pausa Servizio"
+            await interaction.response.edit_message(
+                content="🟢 **Hai ripreso il servizio**", view=self
+            )
+
+        # SE sei in servizio → metti in pausa
         elif staff_data[uid]["inizio"] is not None:
             durata = time.time() - staff_data[uid]["inizio"]
-            staff_data[uid]["totale"] += durata
-            staff_data[uid]["inizio"] = None
+            staff_data[uid]["totale"] += durata  # aggiungi il tempo lavorato
+            staff_data[uid]["inizio"] = None       # stoppa il conteggio finché sei in pausa
             staff_data[uid]["pausa"] = True
             save_staff()
+
             button.label = "🟢 Riprendi Servizio"
-            await interaction.response.edit_message(content="🟡 **Servizio messo in PAUSA**", view=self)
+            await interaction.response.edit_message(
+                content="🟡 **Servizio messo in PAUSA**", view=self
+            )
 
         else:
+            # Non sei né in pausa né in servizio → errore
             await interaction.response.send_message(
                 "⚠️ Non sei in servizio", ephemeral=True
             )
 
-    # ================= ESCI DAL SERVIZIO =================
-    @discord.ui.button(label="🔴 Esci dal Servizio", style=discord.ButtonStyle.danger)
-    async def servizio_off(self, interaction: discord.Interaction, button: discord.ui.Button):
-        uid = str(interaction.user.id)
-        now = time.time()
-        DIRETTORE_ROLE_ID = 1426308704759976108
+        # ================= ESCI DAL SERVIZIO =================
+        @discord.ui.button(label="🔴 Esci dal Servizio", style=discord.ButtonStyle.danger)
+        async def servizio_off(self, interaction: discord.Interaction, button: discord.ui.Button):
+            uid = str(interaction.user.id)
+            now = time.time()
+            DIRETTORE_ROLE_ID = 1426308704759976108
 
-        if uid not in staff_data:
-            return await interaction.response.send_message(
-                "⚠️ Non sei in servizio", ephemeral=True
-            )
+            if uid not in staff_data:
+                return await interaction.response.send_message(
+                    "⚠️ Non sei in servizio", ephemeral=True
+                )
 
         durata = 0
         if staff_data[uid]["inizio"]:
