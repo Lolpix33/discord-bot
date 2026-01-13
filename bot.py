@@ -422,6 +422,7 @@ class ServizioView(discord.ui.View):
         now = time.time()
         DIRETTORE_ROLE_ID = 1426308704759976108
 
+        # Crea utente se non presente
         staff_data.setdefault(uid, {
             "totale": 0,
             "inizio": None,
@@ -432,15 +433,18 @@ class ServizioView(discord.ui.View):
             "vc_minuti": 0
         })
 
+        # Controllo se già in servizio o in pausa
         if staff_data[uid]["inizio"] is not None or staff_data[uid]["pausa"]:
             return await interaction.response.send_message(
                 "⚠️ Sei già in servizio (o in pausa)", ephemeral=True
             )
 
+        # Avvia servizio
         staff_data[uid]["inizio"] = now
         staff_data[uid]["pausa"] = False
         save_staff()
 
+        # Embed DM
         embed = discord.Embed(
             title="🟢 Entrata in servizio",
             description=f"👮 {interaction.user.mention} è entrato in servizio",
@@ -448,11 +452,13 @@ class ServizioView(discord.ui.View):
             timestamp=discord.utils.utcnow()
         )
 
+        # DM Owner
         try:
             await interaction.guild.owner.send(embed=embed)
         except:
             pass
 
+        # DM Direttore
         direttore_role = interaction.guild.get_role(DIRETTORE_ROLE_ID)
         if direttore_role:
             for membro in direttore_role.members:
@@ -470,52 +476,44 @@ class ServizioView(discord.ui.View):
     async def servizio_pausa(self, interaction: discord.Interaction, button: discord.ui.Button):
         uid = str(interaction.user.id)
 
-        if uid not in staff_data:
+        if uid not in staff_data or (staff_data[uid]["inizio"] is None and not staff_data[uid]["pausa"]):
             return await interaction.response.send_message(
                 "⚠️ Non sei in servizio", ephemeral=True
             )
 
-        # SE sei in pausa → riprendi servizio
+        # SE sei in pausa → RIPRENDI servizio
         if staff_data[uid]["pausa"]:
             staff_data[uid]["pausa"] = False
-            staff_data[uid]["inizio"] = time.time()  # riprendi il conteggio
+            staff_data[uid]["inizio"] = time.time()  # riprendi conteggio
             save_staff()
 
             button.label = "🟡 Pausa Servizio"
-            await interaction.response.edit_message(
-                content="🟢 **Hai ripreso il servizio**", view=self
-            )
+            await interaction.response.edit_message(view=self)
+            await interaction.followup.send("🟢 **Hai ripreso il servizio**", ephemeral=True)
 
-        # SE sei in servizio → metti in pausa
+        # SE sei in servizio → METTI IN PAUSA
         elif staff_data[uid]["inizio"] is not None:
             durata = time.time() - staff_data[uid]["inizio"]
-            staff_data[uid]["totale"] += durata  # aggiungi il tempo lavorato
-            staff_data[uid]["inizio"] = None       # stoppa il conteggio finché sei in pausa
+            staff_data[uid]["totale"] += durata  # aggiungi tempo già lavorato
+            staff_data[uid]["inizio"] = None      # stoppa conteggio
             staff_data[uid]["pausa"] = True
             save_staff()
 
             button.label = "🟢 Riprendi Servizio"
-            await interaction.response.edit_message(
-                content="🟡 **Servizio messo in PAUSA**", view=self
-            )
+            await interaction.response.edit_message(view=self)
+            await interaction.followup.send("🟡 **Servizio messo in PAUSA**", ephemeral=True)
 
-        else:
-            # Non sei né in pausa né in servizio → errore
-            await interaction.response.send_message(
+    # ================= ESCI DAL SERVIZIO =================
+    @discord.ui.button(label="🔴 Esci dal Servizio", style=discord.ButtonStyle.danger)
+    async def servizio_off(self, interaction: discord.Interaction, button: discord.ui.Button):
+        uid = str(interaction.user.id)
+        now = time.time()
+        DIRETTORE_ROLE_ID = 1426308704759976108
+
+        if uid not in staff_data:
+            return await interaction.response.send_message(
                 "⚠️ Non sei in servizio", ephemeral=True
             )
-
-        # ================= ESCI DAL SERVIZIO =================
-        @discord.ui.button(label="🔴 Esci dal Servizio", style=discord.ButtonStyle.danger)
-        async def servizio_off(self, interaction: discord.Interaction, button: discord.ui.Button):
-            uid = str(interaction.user.id)
-            now = time.time()
-            DIRETTORE_ROLE_ID = 1426308704759976108
-
-            if uid not in staff_data:
-                return await interaction.response.send_message(
-                    "⚠️ Non sei in servizio", ephemeral=True
-                )
 
         durata = 0
         if staff_data[uid]["inizio"]:
@@ -540,11 +538,13 @@ class ServizioView(discord.ui.View):
             timestamp=discord.utils.utcnow()
         )
 
+        # DM Owner
         try:
             await interaction.guild.owner.send(embed=embed)
         except:
             pass
 
+        # DM Direttore
         direttore_role = interaction.guild.get_role(DIRETTORE_ROLE_ID)
         if direttore_role:
             for membro in direttore_role.members:
@@ -556,6 +556,8 @@ class ServizioView(discord.ui.View):
         await interaction.response.send_message(
             "🔴 **Sei uscito dal servizio**", ephemeral=True
         )
+
+
 
 
 
