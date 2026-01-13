@@ -432,7 +432,6 @@ class ServizioView(discord.ui.View):
             "vc_minuti": 0
         })
 
-        # 🔒 Se già in servizio o in pausa
         if staff_data[uid]["inizio"] is not None or staff_data[uid]["pausa"]:
             return await interaction.response.send_message(
                 "⚠️ Sei già in servizio (o in pausa)", ephemeral=True
@@ -449,13 +448,11 @@ class ServizioView(discord.ui.View):
             timestamp=discord.utils.utcnow()
         )
 
-        # DM OWNER
         try:
             await interaction.guild.owner.send(embed=embed)
         except:
             pass
 
-        # DM DIRETTORE
         direttore_role = interaction.guild.get_role(DIRETTORE_ROLE_ID)
         if direttore_role:
             for membro in direttore_role.members:
@@ -469,7 +466,7 @@ class ServizioView(discord.ui.View):
         )
 
     # ================= PAUSA =================
-   @discord.ui.button(label="🟡 Pausa Servizio", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label="🟡 Pausa Servizio", style=discord.ButtonStyle.secondary)
     async def servizio_pausa(self, interaction: discord.Interaction, button: discord.ui.Button):
         uid = str(interaction.user.id)
 
@@ -481,17 +478,16 @@ class ServizioView(discord.ui.View):
         # Se sei già in pausa → riprendi servizio
         if staff_data[uid]["pausa"]:
             staff_data[uid]["pausa"] = False
-            staff_data[uid]["inizio"] = time.time()  # riprendi il conteggio
+            staff_data[uid]["inizio"] = time.time()
             save_staff()
             button.label = "🟡 Pausa Servizio"
-            # Rispondi una sola volta e aggiorna la view nello stesso passaggio
             await interaction.response.edit_message(content="🟢 **Hai ripreso il servizio**", view=self)
 
         # Se sei in servizio → metti in pausa
         elif staff_data[uid]["inizio"] is not None:
             durata = time.time() - staff_data[uid]["inizio"]
-            staff_data[uid]["totale"] += durata  # aggiungi il tempo già lavorato
-            staff_data[uid]["inizio"] = None      # stoppa il conteggio
+            staff_data[uid]["totale"] += durata
+            staff_data[uid]["inizio"] = None
             staff_data[uid]["pausa"] = True
             save_staff()
             button.label = "🟢 Riprendi Servizio"
@@ -501,30 +497,6 @@ class ServizioView(discord.ui.View):
             await interaction.response.send_message(
                 "⚠️ Non sei in servizio", ephemeral=True
             )
-
-
-
-        # ▶️ RIPRENDI
-        if staff_data[uid]["pausa"]:
-            staff_data[uid]["pausa"] = False
-            staff_data[uid]["inizio"] = time.time()
-            save_staff()
-
-            button.label = "🟡 Pausa Servizio"
-            await interaction.response.edit_message(view=self)
-            await interaction.followup.send("🟢 **Hai ripreso il servizio**", ephemeral=True)
-
-        # ⏸️ PAUSA
-        else:
-            durata = time.time() - staff_data[uid]["inizio"]
-            staff_data[uid]["totale"] += durata
-            staff_data[uid]["inizio"] = None
-            staff_data[uid]["pausa"] = True
-            save_staff()
-
-            button.label = "🟢 Riprendi Servizio"
-            await interaction.response.edit_message(view=self)
-            await interaction.followup.send("🟡 **Servizio messo in PAUSA**", ephemeral=True)
 
     # ================= ESCI DAL SERVIZIO =================
     @discord.ui.button(label="🔴 Esci dal Servizio", style=discord.ButtonStyle.danger)
@@ -561,13 +533,11 @@ class ServizioView(discord.ui.View):
             timestamp=discord.utils.utcnow()
         )
 
-        # DM OWNER
         try:
             await interaction.guild.owner.send(embed=embed)
         except:
             pass
 
-        # DM DIRETTORE
         direttore_role = interaction.guild.get_role(DIRETTORE_ROLE_ID)
         if direttore_role:
             for membro in direttore_role.members:
@@ -579,7 +549,6 @@ class ServizioView(discord.ui.View):
         await interaction.response.send_message(
             "🔴 **Sei uscito dal servizio**", ephemeral=True
         )
-
 
 
 
