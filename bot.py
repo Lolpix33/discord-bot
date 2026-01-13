@@ -412,6 +412,7 @@ async def servizio(ctx, stato: str):
 
 # ================= SERVIZIO CON BOTTONI =================
 # ================= SERVIZIO CON BOTTONI =================
+# ================= SERVIZIO CON BOTTONI =================
 class ServizioView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -421,9 +422,7 @@ class ServizioView(discord.ui.View):
     async def servizio_on(self, interaction: discord.Interaction, button: discord.ui.Button):
         uid = str(interaction.user.id)
         now = time.time()
-        DIRETTORE_ROLE_ID = 1426308704759976108
 
-        # Crea l'utente se non esiste
         staff_data.setdefault(uid, {
             "totale": 0,
             "inizio": None,
@@ -434,9 +433,7 @@ class ServizioView(discord.ui.View):
         })
 
         if staff_data[uid]["inizio"] is not None:
-            return await interaction.response.send_message(
-                "⚠️ Sei già in servizio", ephemeral=True
-            )
+            return await interaction.response.send_message("⚠️ Sei già in servizio", ephemeral=True)
 
         staff_data[uid]["inizio"] = now
         save_staff()
@@ -448,13 +445,13 @@ class ServizioView(discord.ui.View):
             timestamp=discord.utils.utcnow()
         )
 
-        # DM Owner
+        # Notifica Owner
         try:
             await interaction.guild.owner.send(embed=embed)
         except:
             pass
 
-        # DM Direttore
+        # Notifica Direttore
         direttore_role = interaction.guild.get_role(DIRETTORE_ROLE_ID)
         if direttore_role:
             for membro in direttore_role.members:
@@ -470,70 +467,52 @@ class ServizioView(discord.ui.View):
     async def servizio_off(self, interaction: discord.Interaction, button: discord.ui.Button):
         uid = str(interaction.user.id)
         now = time.time()
-        DIRETTORE_ROLE_ID = 1426308704759976108
 
         if uid not in staff_data or staff_data[uid]["inizio"] is None:
             return await interaction.response.send_message("⚠️ Non sei in servizio", ephemeral=True)
 
         # Calcola durata sessione
-       # Calcola durata sessione
-durata = now - staff_data[uid]["inizio"]
-staff_data[uid]["totale"] += durata
+        inizio_sessione = staff_data[uid]["inizio"]
+        durata = now - inizio_sessione
+        staff_data[uid]["totale"] += durata
 
-# Calcola eventuale VC rimasto aperto
-vc_inizio = staff_data[uid].get("vc_inizio")
-if vc_inizio:
-    durata_vc = time.time() - vc_inizio
-    staff_data[uid]["vc_minuti"] += int(durata_vc / 60)
-    staff_data[uid]["vc_inizio"] = None
+        # Calcola eventuale VC rimasto aperto
+        vc_inizio = staff_data[uid].get("vc_inizio")
+        if vc_inizio:
+            durata_vc = time.time() - vc_inizio
+            staff_data[uid]["vc_minuti"] += int(durata_vc / 60)
+            staff_data[uid]["vc_inizio"] = None
 
-# Reset variabili temporanee
-    inizio_sessione = staff_data[uid]["inizio"]
-    staff_data[uid]["inizio"] = None
-    staff_data[uid]["pausa"] = False
-    save_staff()
+        # Reset variabili temporanee
+        staff_data[uid]["inizio"] = None
+        staff_data[uid]["pausa"] = False
+        save_staff()
 
-    # Embed di log
-    embed = discord.Embed(
-        title=f"🔴 {interaction.user.display_name} è uscito dal servizio",
-        description=(
-            f"👮 **Staff:** {interaction.user.mention}\n"
-            f"⏱ **Durata sessione:** {format_time(durata)}\n"
-            f"⏱ **Ore totali:** {format_time(staff_data[uid]['totale'])}\n"
-            f"🏅 **Rank attuale:** {get_rank(staff_data[uid]['totale'])}\n"
-            f"💬 **Messaggi inviati:** {staff_data[uid]['messaggi']}\n"
-            f"⚡ **Comandi usati:** {staff_data[uid]['comandi']}\n"
-            f"✉️ **DM gestiti:** {staff_data[uid]['dm_gestiti']}\n"
-            f"🎤 **Minuti in VC:** {staff_data[uid]['vc_minuti']}\n"
-            f"🕒 **Inizio sessione:** {datetime.fromtimestamp(inizio_sessione).strftime('%Y-%m-%d %H:%M:%S')}"
-        ),
-        color=discord.Color.red(),
-        timestamp=discord.utils.utcnow()
-    )
+        # Embed di log
+        embed = discord.Embed(
+            title=f"🔴 {interaction.user.display_name} è uscito dal servizio",
+            description=(
+                f"👮 **Staff:** {interaction.user.mention}\n"
+                f"⏱ **Durata sessione:** {format_time(durata)}\n"
+                f"⏱ **Ore totali:** {format_time(staff_data[uid]['totale'])}\n"
+                f"🏅 **Rank attuale:** {get_rank(staff_data[uid]['totale'])}\n"
+                f"💬 **Messaggi inviati:** {staff_data[uid]['messaggi']}\n"
+                f"⚡ **Comandi usati:** {staff_data[uid]['comandi']}\n"
+                f"✉️ **DM gestiti:** {staff_data[uid]['dm_gestiti']}\n"
+                f"🎤 **Minuti in VC:** {staff_data[uid]['vc_minuti']}\n"
+                f"🕒 **Inizio sessione:** {datetime.fromtimestamp(inizio_sessione).strftime('%Y-%m-%d %H:%M:%S')}"
+            ),
+            color=discord.Color.red(),
+            timestamp=discord.utils.utcnow()
+        )
 
-# Notifica Owner e Direttore
-try:
-    await interaction.guild.owner.send(embed=embed)
-except: pass
-
-direttore_role = interaction.guild.get_role(DIRETTORE_ROLE_ID)
-if direttore_role:
-    for membro in direttore_role.members:
-        try:
-            await membro.send(embed=embed)
-        except: pass
-
-# Invia risposta all'utente
-await interaction.response.send_message("🔴 **Sei uscito dal servizio**", ephemeral=True)
-
-
-        # DM Owner
+        # Notifica Owner
         try:
             await interaction.guild.owner.send(embed=embed)
         except:
             pass
 
-        # DM Direttore
+        # Notifica Direttore
         direttore_role = interaction.guild.get_role(DIRETTORE_ROLE_ID)
         if direttore_role:
             for membro in direttore_role.members:
@@ -543,7 +522,6 @@ await interaction.response.send_message("🔴 **Sei uscito dal servizio**", ephe
                     pass
 
         await interaction.response.send_message("🔴 **Sei uscito dal servizio**", ephemeral=True)
-
 
 
 
