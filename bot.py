@@ -523,7 +523,17 @@ class ServizioView(discord.ui.View):
                 except:
                     pass
 
-        await interaction.response.send_message("🔴 **Sei uscito dal servizio**", ephemeral=True)
+        durata_sessione_str = format_time(durata_sessione)
+        totale_str = format_time(staff_data[uid]["totale"])
+        rank_attuale = get_rank(staff_data[uid]["totale"])
+
+        await interaction.response.send_message(
+            f"🔴 **Sei uscito dal servizio**\n\n"
+            f"⏱ **Durata sessione:** {durata_sessione_str}\n"
+            f"⏱ **Ore totali:** {totale_str}\n"
+            f"🏅 **Rank attuale:** {rank_attuale}",
+            ephemeral=True
+        )
 
 
 
