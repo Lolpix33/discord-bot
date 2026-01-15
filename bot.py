@@ -419,12 +419,11 @@ class ServizioView(discord.ui.View):
         super().__init__(timeout=None)
 
     # ================= ENTRA IN SERVIZIO =================
-    @discord.ui.button(label="🟢 Mettiti in Servizio", style=discord.ButtonStyle.success)
-    async def servizio_on(self, interaction: discord.Interaction, button: discord.ui.Button):   
+   @discord.ui.button(label="🟢 Mettiti in Servizio", style=discord.ButtonStyle.success)
+    async def servizio_on(self, interaction: discord.Interaction, button: discord.ui.Button):
         uid = str(interaction.user.id)
         now = time.time()
 
-        # Inizializza dati se non presenti
         staff_data.setdefault(uid, {
             "totale": 0,
             "inizio": None,
@@ -437,28 +436,25 @@ class ServizioView(discord.ui.View):
         if staff_data[uid]["inizio"] is not None:
             return await interaction.response.send_message("⚠️ Sei già in servizio", ephemeral=True)
 
-        # Imposta inizio servizio
         staff_data[uid]["inizio"] = now
         save_staff()
 
-        # Messaggio iniziale ephemeral
-        msg = await interaction.response.send_message(
+        # Rispondi all'interazione e recupera il messaggio
+        await interaction.response.send_message(
             f"🟢 **Sei ora in servizio**\n⏱ Tempo trascorso: 0s",
-            ephemeral=True,
-            fetch_response=True
+            ephemeral=True
         )
+        msg = await interaction.original_response()
 
-        # Loop per aggiornare il timer ogni secondo
         async def update_timer():
-            while staff_data[uid]["inizio"]:
+            while staff_data[uid]["inizio"] is not None:
                 durata = int(time.time() - staff_data[uid]["inizio"])
                 try:
                     await msg.edit(content=f"🟢 **Sei ora in servizio**\n⏱ Tempo trascorso: {durata}s")
                 except:
-                    break  # se non può modificare il messaggio, esce dal loop
+                    break
                 await asyncio.sleep(1)
 
-        # Avvia il task
         bot.loop.create_task(update_timer())
 
         # Embed di log per Owner e Direttore
@@ -469,13 +465,11 @@ class ServizioView(discord.ui.View):
             timestamp=discord.utils.utcnow()
         )
 
-        # Notifica Owner
         try:
             await interaction.guild.owner.send(embed=embed)
         except:
             pass
 
-        # Notifica Direttore
         direttore_role = interaction.guild.get_role(DIRETTORE_ROLE_ID)
         if direttore_role:
             for membro in direttore_role.members:
@@ -483,6 +477,7 @@ class ServizioView(discord.ui.View):
                     await membro.send(embed=embed)
                 except:
                     pass
+
 
 
     # ================= ESCI DAL SERVIZIO =================
