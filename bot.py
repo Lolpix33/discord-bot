@@ -418,37 +418,30 @@ class ServizioView(discord.ui.View):
 
     # ================= ENTRA IN SERVIZIO =================
     @discord.ui.button(label="🟢 Mettiti in Servizio", style=discord.ButtonStyle.success)
-    async def servizio_on(self, interaction: discord.Interaction, button: discord.ui.Button):   
+    async def servizio_on(self, interaction: discord.Interaction, button: discord.ui.Button):
         uid = str(interaction.user.id)
         now = time.time()
 
-        # Inizializza dati se non presenti
-        staff_data.setdefault(uid, {
-            "totale": 0,
-            "inizio": None,
-            "messaggi": 0,
-            "comandi": 0,
-            "dm_gestiti": 0,
-            "vc_minuti": 0
-        })
+        staff_data.setdefault(uid, {"totale": 0, "inizio": None, "messaggi": 0, "comandi": 0, "dm_gestiti": 0, "vc_minuti": 0})
 
         if staff_data[uid]["inizio"] is not None:
             return await interaction.response.send_message("⚠️ Sei già in servizio", ephemeral=True)
 
-        # Imposta inizio servizio
         staff_data[uid]["inizio"] = now
         save_staff()
 
-        # Invia il messaggio iniziale in DM
+        # Rispondi subito all'interazione
+        await interaction.response.send_message("🟢 Sei entrato in servizio! Controlla il tuo DM per il timer.", ephemeral=True)
+
+        # Crea DM
         try:
             dm = await interaction.user.create_dm()
             msg = await dm.send("🟢 **Sei ora in servizio**\n⏱ Tempo trascorso: 00:00:00")
+            await asyncio.sleep(0.5)  # attende mezzo secondo per assicurarsi che il messaggio sia pronto
         except:
-            return await interaction.response.send_message("⚠️ Non posso inviarti un DM.", ephemeral=True)
+            return await interaction.followup.send("⚠️ Non posso inviarti un DM.", ephemeral=True)
 
-        await interaction.response.send_message("🟢 Sei entrato in servizio! Controlla il tuo DM per il timer.", ephemeral=True)
-
-        # Funzione per aggiornare il timer continuamente
+        # Timer in loop
         async def update_timer():
             while staff_data[uid]["inizio"] is not None:
                 durata = int(time.time() - staff_data[uid]["inizio"])
@@ -458,32 +451,11 @@ class ServizioView(discord.ui.View):
                 try:
                     await msg.edit(content=f"🟢 **Sei ora in servizio**\n⏱ Tempo trascorso: {durata_str}")
                 except:
-                    break  # Se non può modificare il messaggio, esce dal loop
-                await asyncio.sleep(1)  # Aggiorna ogni secondo
+                    break
+                await asyncio.sleep(1)
 
-        # Avvia il task in background
         asyncio.create_task(update_timer())
 
-        # Embed di log per Owner e Direttore
-        embed = discord.Embed(
-            title="🟢 Entrata in servizio",
-            description=f"👮 {interaction.user.mention} è entrato in servizio",
-            color=discord.Color.green(),
-            timestamp=discord.utils.utcnow()
-        )
-
-        try:
-            await interaction.guild.owner.send(embed=embed)
-        except:
-            pass
-
-        direttore_role = interaction.guild.get_role(DIRETTORE_ROLE_ID)
-        if direttore_role:
-            for membro in direttore_role.members:
-                try:
-                    await membro.send(embed=embed)
-                except:
-                    pass
 
 
 
