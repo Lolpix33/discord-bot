@@ -422,45 +422,74 @@ class ServizioView(discord.ui.View):
         uid = str(interaction.user.id)
         now = time.time()
 
+        # Inizializza dati se non presenti
         staff_data.setdefault(uid, {"totale": 0, "inizio": None, "messaggi": 0, "comandi": 0, "dm_gestiti": 0, "vc_minuti": 0})
 
         if staff_data[uid]["inizio"] is not None:
             return await interaction.response.send_message("⚠️ Sei già in servizio", ephemeral=True)
 
+        # Imposta inizio servizio
         staff_data[uid]["inizio"] = now
         save_staff()
 
-        # Rispondi subito all'interazione
-        await interaction.response.send_message("🟢 Sei entrato in servizio! Controlla il tuo DM per il timer.", ephemeral=True)
-
-        # Crea DM
+        # Messaggio privato per l'utente
         try:
             dm = await interaction.user.create_dm()
-            msg = await dm.send("🟢 **Sei ora in servizio**\n⏱ Tempo trascorso: 00:00:00")
-            await asyncio.sleep(0.5)  # attende mezzo secondo per assicurarsi che il messaggio sia pronto
+            await dm.send("🟢 **Sei ora in servizio!**\nGuarda la sezione **STAFF TIMER** per vedere quanto stai in servizio ⏱")
         except:
-            return await interaction.followup.send("⚠️ Non posso inviarti un DM.", ephemeral=True)
+            await interaction.response.send_message("⚠️ Non posso inviarti un DM.", ephemeral=True)
+        else:
+            await interaction.response.send_message("🟢 Sei entrato in servizio! Controlla il tuo DM.", ephemeral=True)
 
-        # Timer in loop
+        # Canale staff per il timer
+        channel = interaction.guild.get_channel(1461432083690946652)  # ID canale staff
+        if not channel:
+            return
+
+        # Messaggio pubblico timer con tag dello staff
+        msg = await channel.send(f"👮 {interaction.user.mention} è ora in servizio\n⏱ >>> 00:00:00 <<<")
+
+        # Funzione per aggiornare il timer ogni secondo
         async def update_timer():
             while staff_data[uid]["inizio"] is not None:
                 durata = int(time.time() - staff_data[uid]["inizio"])
                 ore, rem = divmod(durata, 3600)
                 minuti, secondi = divmod(rem, 60)
                 durata_str = f"{ore:02}:{minuti:02}:{secondi:02}"
+
+                # Aggiorna il messaggio pubblico con frecce
                 try:
-                    await msg.edit(content=f"🟢 **Sei ora in servizio**\n⏱ Tempo trascorso: {durata_str}")
+                    await msg.edit(content=f"👮 {interaction.user.mention} è ora in servizio\n⏱ >>> {durata_str} <<<")
                 except:
                     break
                 await asyncio.sleep(1)
 
         asyncio.create_task(update_timer())
 
+        # Embed di log per Owner e Direttore
+        embed = discord.Embed(
+            title="🟢 Entrata in servizio",
+            description=f"👮 {interaction.user.mention} è entrato in servizio",
+            color=discord.Color.green(),
+            timestamp=discord.utils.utcnow()
+        )
+
+        # Notifica Owner
+        try:
+            await interaction.guild.owner.send(embed=embed)
+        except:
+            pass
+
+        # Notifica Direttore
+        direttore_role = interaction.guild.get_role(DIRETTORE_ROLE_ID)
+        if direttore_role:
+            for membro in direttore_role.members:
+                try:
+                    await membro.send(embed=embed)
+                except:
+                    pass
 
 
-
-
-    # ================= ESCI DAL SERVIZIO =================
     # ================= ESCI DAL SERVIZIO =================
     @discord.ui.button(label="🔴 Esci dal Servizio", style=discord.ButtonStyle.danger)
     async def servizio_off(self, interaction: discord.Interaction, button: discord.ui.Button):
