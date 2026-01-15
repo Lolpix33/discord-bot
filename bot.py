@@ -433,12 +433,23 @@ async def start_timer(channel: discord.TextChannel, user: discord.User, uid: str
 # ================= SERVIZIO CON BOTTONI =================
 class ServizioView(discord.ui.View):
 
+   class ServizioView(discord.ui.View):
+
     @discord.ui.button(label="🟢 Mettiti in Servizio", style=discord.ButtonStyle.success)
     async def servizio_on(self, interaction: discord.Interaction, button: discord.ui.Button):
         uid = str(interaction.user.id)
         now = time.time()
 
-        staff_data.setdefault(uid, {"totale": 0, "inizio": None})
+        # Inizializza dati dello staff
+        staff_data.setdefault(uid, {
+            "totale": 0,
+            "inizio": None,
+            "pausa": False,
+            "messaggi": 0,
+            "comandi": 0,
+            "dm_gestiti": 0,
+            "vc_minuti": 0
+        })
 
         if staff_data[uid]["inizio"] is not None:
             return await interaction.response.send_message("⚠️ Sei già in servizio", ephemeral=True)
@@ -450,16 +461,15 @@ class ServizioView(discord.ui.View):
             "🟢 Sei entrato in servizio! Guarda il canale staff per il timer ⏱", ephemeral=True
         )
 
+        # Canale pubblico per il timer
         channel = interaction.guild.get_channel(1461432083690946652)
         if not channel:
             return
 
-        # Avvia il timer
+        # Avvia il timer in background
         asyncio.create_task(start_timer(channel, interaction.user, uid))
 
 
-
-    # ================= ESCI DAL SERVIZIO =================
     @discord.ui.button(label="🔴 Esci dal Servizio", style=discord.ButtonStyle.danger)
     async def servizio_off(self, interaction: discord.Interaction, button: discord.ui.Button):
         uid = str(interaction.user.id)
@@ -468,16 +478,16 @@ class ServizioView(discord.ui.View):
         if uid not in staff_data or staff_data[uid]["inizio"] is None:
             return await interaction.response.send_message("⚠️ Non sei in servizio", ephemeral=True)
 
-        # Calcola durata sessione in secondi
+        # Calcola durata sessione
         inizio_sessione = staff_data[uid]["inizio"]
         durata_sessione = now - inizio_sessione
         staff_data[uid]["totale"] += durata_sessione
 
-        # ---------- CALCOLO VOCE ----------
+        # Calcola eventuali minuti in VC
         inizio_vc = staff_data[uid].get("vc_inizio")
         if inizio_vc:
-            durata_vc = now - inizio_vc          # durata in secondi
-            staff_data[uid]["vc_minuti"] += int(durata_vc)  # sommo i secondi
+            durata_vc = now - inizio_vc
+            staff_data[uid]["vc_minuti"] += int(durata_vc)
             staff_data[uid]["vc_inizio"] = None
 
         # Reset variabili temporanee
@@ -508,10 +518,6 @@ class ServizioView(discord.ui.View):
             await interaction.guild.owner.send(embed=embed)
         except:
             pass
-            # Formattazione dei valori da mostrare allo staff
-
-            
-
 
         # Notifica Direttore
         direttore_role = interaction.guild.get_role(DIRETTORE_ROLE_ID)
@@ -521,17 +527,15 @@ class ServizioView(discord.ui.View):
                     await membro.send(embed=embed)
                 except:
                     pass
-        durata_sessione_str = format_time(durata_sessione)
-        totale_str = format_time(staff_data[uid]["totale"])
-        rank_attuale = get_rank(staff_data[uid]["totale"])
+
+        # Risposta all’utente
         await interaction.response.send_message(
             f"🔴 **Sei uscito dal servizio**\n\n"
-            f"⏱ **Durata sessione:** {durata_sessione_str}\n"
-            f"⏱ **Ore totali:** {totale_str}\n"
-            f"🏅 **Rank attuale:** {rank_attuale}",
+            f"⏱ **Durata sessione:** {format_time(durata_sessione)}\n"
+            f"⏱ **Ore totali:** {format_time(staff_data[uid]['totale'])}\n"
+            f"🏅 **Rank attuale:** {get_rank(staff_data[uid]['totale'])}",
             ephemeral=True
         )
-
 
 
 
