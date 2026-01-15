@@ -412,15 +412,13 @@ async def servizio(ctx, stato: str):
         await ctx.reply("❌ NON ESISTE QUESTO COMANDO | DEVI USARE IL PANNELLO IN SERVIZIO STAFF E CLICCARE ENTRA IN SERVIZIO")
 
 # ================= SERVIZIO CON BOTTONI =================
-# ================= SERVIZIO CON BOTTONI =================
-# ================= SERVIZIO CON BOTTONI =================
 class ServizioView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
     # ================= ENTRA IN SERVIZIO =================
     @discord.ui.button(label="🟢 Mettiti in Servizio", style=discord.ButtonStyle.success)
-    async def servizio_on(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def servizio_on(self, interaction: discord.Interaction, button: discord.ui.Button):   
         uid = str(interaction.user.id)
         now = time.time()
 
@@ -441,10 +439,16 @@ class ServizioView(discord.ui.View):
         staff_data[uid]["inizio"] = now
         save_staff()
 
-        # Invia il messaggio ephemeral tramite followup
-        await interaction.response.send_message("🟢 **Sei ora in servizio**\n⏱ Tempo trascorso: 00:00:00", ephemeral=True)
-        msg = await interaction.followup.fetch_message(interaction.response.id)
+        # Invia il messaggio iniziale in DM
+        try:
+            dm = await interaction.user.create_dm()
+            msg = await dm.send("🟢 **Sei ora in servizio**\n⏱ Tempo trascorso: 00:00:00")
+        except:
+            return await interaction.response.send_message("⚠️ Non posso inviarti un DM.", ephemeral=True)
 
+        await interaction.response.send_message("🟢 Sei entrato in servizio! Controlla il tuo DM per il timer.", ephemeral=True)
+
+        # Funzione per aggiornare il timer continuamente
         async def update_timer():
             while staff_data[uid]["inizio"] is not None:
                 durata = int(time.time() - staff_data[uid]["inizio"])
@@ -452,15 +456,15 @@ class ServizioView(discord.ui.View):
                 minuti, secondi = divmod(rem, 60)
                 durata_str = f"{ore:02}:{minuti:02}:{secondi:02}"
                 try:
-                    await interaction.followup.edit_message(message_id=msg.id,
-                                                            content=f"🟢 **Sei ora in servizio**\n⏱ Tempo trascorso: {durata_str}")
+                    await msg.edit(content=f"🟢 **Sei ora in servizio**\n⏱ Tempo trascorso: {durata_str}")
                 except:
-                    break
-                await asyncio.sleep(1)
+                    break  # Se non può modificare il messaggio, esce dal loop
+                await asyncio.sleep(1)  # Aggiorna ogni secondo
 
+        # Avvia il task in background
         asyncio.create_task(update_timer())
 
-        # Embed di log
+        # Embed di log per Owner e Direttore
         embed = discord.Embed(
             title="🟢 Entrata in servizio",
             description=f"👮 {interaction.user.mention} è entrato in servizio",
@@ -480,6 +484,7 @@ class ServizioView(discord.ui.View):
                     await membro.send(embed=embed)
                 except:
                     pass
+
 
 
 
