@@ -419,7 +419,7 @@ class ServizioView(discord.ui.View):
         super().__init__(timeout=None)
 
     # ================= ENTRA IN SERVIZIO =================
-   @discord.ui.button(label="🟢 Mettiti in Servizio", style=discord.ButtonStyle.success)
+    @discord.ui.button(label="🟢 Mettiti in Servizio", style=discord.ButtonStyle.success)
     async def servizio_on(self, interaction: discord.Interaction, button: discord.ui.Button):
         uid = str(interaction.user.id)
         now = time.time()
