@@ -441,29 +441,26 @@ class ServizioView(discord.ui.View):
         staff_data[uid]["inizio"] = now
         save_staff()
 
-        # Rispondi all'interazione
-        await interaction.response.send_message(f"🟢 **Sei ora in servizio**\n⏱ Tempo trascorso: 0s", ephemeral=True)
-
-        # Recupera il messaggio originale
-        msg = await interaction.original_response()
+        # Invia il messaggio ephemeral tramite followup
+        await interaction.response.send_message("🟢 **Sei ora in servizio**\n⏱ Tempo trascorso: 00:00:00", ephemeral=True)
+        msg = await interaction.followup.fetch_message(interaction.response.id)
 
         async def update_timer():
             while staff_data[uid]["inizio"] is not None:
                 durata = int(time.time() - staff_data[uid]["inizio"])
-                # Formatta in hh:mm:ss
                 ore, rem = divmod(durata, 3600)
                 minuti, secondi = divmod(rem, 60)
                 durata_str = f"{ore:02}:{minuti:02}:{secondi:02}"
                 try:
-                    await msg.edit(content=f"🟢 **Sei ora in servizio**\n⏱ Tempo trascorso: {durata_str}")
+                    await interaction.followup.edit_message(message_id=msg.id,
+                                                            content=f"🟢 **Sei ora in servizio**\n⏱ Tempo trascorso: {durata_str}")
                 except:
                     break
                 await asyncio.sleep(1)
 
-        # Avvia il task
         asyncio.create_task(update_timer())
 
-        # Embed di log per Owner e Direttore
+        # Embed di log
         embed = discord.Embed(
             title="🟢 Entrata in servizio",
             description=f"👮 {interaction.user.mention} è entrato in servizio",
@@ -471,13 +468,11 @@ class ServizioView(discord.ui.View):
             timestamp=discord.utils.utcnow()
         )
 
-        # Notifica Owner
         try:
             await interaction.guild.owner.send(embed=embed)
         except:
             pass
 
-        # Notifica Direttore
         direttore_role = interaction.guild.get_role(DIRETTORE_ROLE_ID)
         if direttore_role:
             for membro in direttore_role.members:
@@ -485,6 +480,7 @@ class ServizioView(discord.ui.View):
                     await membro.send(embed=embed)
                 except:
                     pass
+
 
 
     # ================= ESCI DAL SERVIZIO =================
