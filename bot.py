@@ -411,14 +411,30 @@ async def servizio(ctx, stato: str):
     else:
         await ctx.reply("❌ NON ESISTE QUESTO COMANDO | DEVI USARE IL PANNELLO IN SERVIZIO STAFF E CLICCARE ENTRA IN SERVIZIO")
 
+# Funzione timer modulare
+async def start_timer(channel: discord.TextChannel, user: discord.User, uid: str):
+    """Timer pubblico per un membro dello staff"""
+    msg = await channel.send(f"👮 {user.mention} è ora in servizio\n⏱ >>> 00:00:00 <<<")
+
+    while uid in staff_data and staff_data[uid].get("inizio") is not None:
+        durata = int(time.time() - staff_data[uid]["inizio"])
+        ore, rem = divmod(durata, 3600)
+        minuti, secondi = divmod(rem, 60)
+        durata_str = f"{ore:02}:{minuti:02}:{secondi:02}"
+
+        try:
+            await msg.edit(content=f"👮 {user.mention} è ora in servizio\n⏱ >>> {durata_str} <<<")
+        except (discord.NotFound, discord.Forbidden):
+            break
+
+        await asyncio.sleep(1)
+
+
 # ================= SERVIZIO CON BOTTONI =================
 class ServizioView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None)
 
-    # ================= ENTRA IN SERVIZIO =================
     @discord.ui.button(label="🟢 Mettiti in Servizio", style=discord.ButtonStyle.success)
-    async def servizio_on(self, interaction: discord.Interaction, button: discord.ui.Button):   
+    async def servizio_on(self, interaction: discord.Interaction, button: discord.ui.Button):
         uid = str(interaction.user.id)
         now = time.time()
 
@@ -430,30 +446,17 @@ class ServizioView(discord.ui.View):
         staff_data[uid]["inizio"] = now
         save_staff()
 
-        await interaction.response.send_message("🟢 Sei entrato in servizio! Controlla il canale staff per il timer.", ephemeral=True)
+        await interaction.response.send_message(
+            "🟢 Sei entrato in servizio! Guarda il canale staff per il timer ⏱", ephemeral=True
+        )
 
-        # Canale staff dove mostrare il timer
         channel = interaction.guild.get_channel(1461432083690946652)
         if not channel:
             return
 
-        # Messaggio pubblico iniziale
-        msg = await channel.send(f"👮 {interaction.user.mention} è ora in servizio\n⏱ >>> 00:00:00 <<<")
+        # Avvia il timer
+        asyncio.create_task(start_timer(channel, interaction.user, uid))
 
-        # Funzione timer
-        async def update_timer():
-            while staff_data[uid]["inizio"] is not None:
-                durata = int(time.time() - staff_data[uid]["inizio"])
-                ore, rem = divmod(durata, 3600)
-                minuti, secondi = divmod(rem, 60)
-                durata_str = f"{ore:02}:{minuti:02}:{secondi:02}"
-                try:
-                    await msg.edit(content=f"👮 {interaction.user.mention} è ora in servizio\n⏱ >>> {durata_str} <<<")
-                except:
-                    break
-                await asyncio.sleep(1)
-
-        asyncio.create_task(update_timer())
 
 
     # ================= ESCI DAL SERVIZIO =================
