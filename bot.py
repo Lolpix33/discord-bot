@@ -420,10 +420,11 @@ class ServizioView(discord.ui.View):
 
     # ================= ENTRA IN SERVIZIO =================
     @discord.ui.button(label="🟢 Mettiti in Servizio", style=discord.ButtonStyle.success)
-    async def servizio_on(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def servizio_on(self, interaction: discord.Interaction, button: discord.ui.Button):   
         uid = str(interaction.user.id)
         now = time.time()
 
+        # Inizializza dati se non presenti
         staff_data.setdefault(uid, {
             "totale": 0,
             "inizio": None,
@@ -436,9 +437,31 @@ class ServizioView(discord.ui.View):
         if staff_data[uid]["inizio"] is not None:
             return await interaction.response.send_message("⚠️ Sei già in servizio", ephemeral=True)
 
+        # Imposta inizio servizio
         staff_data[uid]["inizio"] = now
         save_staff()
 
+        # Messaggio iniziale ephemeral
+        msg = await interaction.response.send_message(
+            f"🟢 **Sei ora in servizio**\n⏱ Tempo trascorso: 0s",
+            ephemeral=True,
+            fetch_response=True
+        )
+
+        # Loop per aggiornare il timer ogni secondo
+        async def update_timer():
+            while staff_data[uid]["inizio"]:
+                durata = int(time.time() - staff_data[uid]["inizio"])
+                try:
+                    await msg.edit(content=f"🟢 **Sei ora in servizio**\n⏱ Tempo trascorso: {durata}s")
+                except:
+                    break  # se non può modificare il messaggio, esce dal loop
+                await asyncio.sleep(1)
+
+        # Avvia il task
+        bot.loop.create_task(update_timer())
+
+        # Embed di log per Owner e Direttore
         embed = discord.Embed(
             title="🟢 Entrata in servizio",
             description=f"👮 {interaction.user.mention} è entrato in servizio",
@@ -461,7 +484,6 @@ class ServizioView(discord.ui.View):
                 except:
                     pass
 
-        await interaction.response.send_message("🟢 **Sei ora IN SERVIZIO**", ephemeral=True)
 
     # ================= ESCI DAL SERVIZIO =================
     # ================= ESCI DAL SERVIZIO =================
