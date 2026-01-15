@@ -523,7 +523,13 @@ class ServizioView(discord.ui.View):
                 except:
                     pass
 
-        await interaction.response.send_message("🔴 **Sei uscito dal servizio**", ephemeral=True)
+        await interaction.response.send_message(
+            f"🔴 **Sei uscito dal servizio**\n\n"
+            f"⏱ **Durata sessione:** {durata_sessione_str}\n"
+            f"⏱ **Ore totali:** {totale_str}\n"
+            f"🏅 **Rank attuale:** {rank_attuale}",
+            ephemeral=True
+        )
 
 
 
@@ -537,8 +543,8 @@ async def pannelloservizio(ctx):
         description=(
             "Usa i **bottoni qui sotto** per gestire il tuo servizio:\n\n"
             "🟢 **IN SERVIZIO** → Inizia a contare le ore\n"
-            "🟡 **PAUSA** → Ferma temporaneamente il conteggio\n"
             "🔴 **OFF** → Termina il servizio"
+            "RICORDATI DI COMPLETARE LE ORE MINIME SETTIMANALI"
         ),
         color=discord.Color.green()
     )
