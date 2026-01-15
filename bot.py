@@ -513,6 +513,10 @@ class ServizioView(discord.ui.View):
             await interaction.guild.owner.send(embed=embed)
         except:
             pass
+            # Formattazione dei valori da mostrare allo staff
+
+            
+
 
         # Notifica Direttore
         direttore_role = interaction.guild.get_role(DIRETTORE_ROLE_ID)
@@ -522,7 +526,9 @@ class ServizioView(discord.ui.View):
                     await membro.send(embed=embed)
                 except:
                     pass
-
+        durata_sessione_str = format_time(durata_sessione)
+        totale_str = format_time(staff_data[uid]["totale"])
+        rank_attuale = get_rank(staff_data[uid]["totale"])
         await interaction.response.send_message(
             f"🔴 **Sei uscito dal servizio**\n\n"
             f"⏱ **Durata sessione:** {durata_sessione_str}\n"
