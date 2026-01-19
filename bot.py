@@ -444,10 +444,18 @@ async def servizio(ctx, stato: str):
     if stato.lower() == "on":
         if staff_data[uid]["inizio"]:
             return await ctx.reply("⚠️ Sei già in servizio")
+
         staff_data[uid]["inizio"] = now
         staff_data[uid]["vc_inizio"] = None
-        staff_data[uid]["avviso_vc"] = False # Aggiunto
+        staff_data[uid]["avviso_vc"] = False
+
+        # 🔎 FIX: se è già in una VC staff, avvia il conteggio VC
+        if ctx.author.voice and ctx.author.voice.channel:
+            if ctx.author.voice.channel.id in VC_CHANNEL_IDS:
+                staff_data[uid]["vc_inizio"] = now
+
         save_staff()
+
         embed = discord.Embed(
             title="🟢 ENTRATA IN SERVIZIO",
             description=f"👮 {ctx.author.mention} è ora **IN SERVIZIO**",
@@ -456,34 +464,11 @@ async def servizio(ctx, stato: str):
         )
         await channel.send(embed=embed)
 
-    elif stato.lower() == "off":
-        if not staff_data[uid]["inizio"]:
-            return await ctx.reply("⚠️ Non sei in servizio")
-        durata = now - staff_data[uid]["inizio"]
-        staff_data[uid]["totale"] += durata
-        staff_data[uid]["inizio"] = None
-        save_staff()
-        start_timestamp = int(now)
-
-
-        rank = get_rank(staff_data[uid]["totale"])
-        embed = discord.Embed(
-            title="🔴 USCITA DAL SERVIZIO",
-            description=(
-                f"👮 {ctx.author.mention}\n"
-                f"⏱ Sessione: **{format_time(durata)}**\n"
-                f"🏅 Rank attuale: {rank}"
-            ),
-            color=discord.Color.red(),
-            timestamp=discord.utils.utcnow()
-        )
-        await channel.send(embed=embed)
     else:
         await ctx.reply("❌ NON ESISTE QUESTO COMANDO | DEVI USARE IL PANNELLO IN SERVIZIO STAFF E CLICCARE ENTRA IN SERVIZIO")
 
 # ================= SERVIZIO CON BOTTONI =================
-# ================= SERVIZIO CON BOTTONI =================
-# ================= SERVIZIO CON BOTTONI =================
+
 class ServizioView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -507,6 +492,7 @@ class ServizioView(discord.ui.View):
                 "vc_minuti": 0,
                 "vc_inizio": None,
                 "avviso_vc": False
+                
             }
 
 
@@ -529,7 +515,14 @@ class ServizioView(discord.ui.View):
         staff_data[uid]["inizio"] = now
         staff_data[uid]["vc_inizio"] = None
         staff_data[uid]["avviso_vc"] = False
+
+        # 🔎 FIX VC: se è già in vocale staff
+        if interaction.user.voice and interaction.user.voice.channel:
+            if interaction.user.voice.channel.id in VC_CHANNEL_IDS:
+                staff_data[uid]["vc_inizio"] = now
+
         save_staff()
+
 
 
 
@@ -1037,15 +1030,6 @@ async def on_voice_state_update(member, before, after):
             dati["vc_inizio"] = now
 
     save_staff()
-
-
-
-
-
-
-
-
-
 
 
 # ================= AVVIO BOT =================
