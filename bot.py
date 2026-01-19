@@ -561,9 +561,14 @@ class ServizioView(discord.ui.View):
                 except:
                     pass
 
-        await interaction.response.send_message("🟢 **Sei ora IN SERVIZIO**", ephemeral=True)
+        await interaction.response.send_message(
+            f"🟢 **Servizio attivato con successo**\n\n"
+            f"👮 Sei entrato in servizio **da:**\n"
+            f"⏱ <t:{start_timestamp}:R>\n\n"
+            f"🔔 Il tempo verrà conteggiato automaticamente.",
+            ephemeral=True
+        )
 
-    # ================= ESCI DAL SERVIZIO =================
     # ================= ESCI DAL SERVIZIO =================
     @discord.ui.button(label="🔴 Esci dal Servizio", style=discord.ButtonStyle.danger)
     async def servizio_off(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -1003,7 +1008,6 @@ async def on_message(message):
     await bot.process_commands(message)
 
 
-# ================= ON_VOICE_STATE_UPDATE =================
 @bot.event
 async def on_voice_state_update(member, before, after):
     if member.bot:
@@ -1012,68 +1016,30 @@ async def on_voice_state_update(member, before, after):
     uid = str(member.id)
     dati = staff_data.get(uid)
 
-    # ===== AVVISO SE ENTRA IN VC SENZA SERVIZIO =====
-    if (
-        after.channel
-        and after.channel.id in VC_CHANNEL_IDS
-        and (not dati or not dati.get("inizio"))
-    ):
-        # inizializza se non esiste
-        if not dati:
-            staff_data[uid] = {
-                "totale": 0,
-                "inizio": None,
-                "pausa": False,
-                "messaggi": 0,
-                "comandi": 0,
-                "dm_gestiti": 0,
-                "vc_minuti": 0,
-                "vc_inizio": None,
-                "avviso_vc": False
-            }
-            dati = staff_data[uid]
-
-        if not dati.get("avviso_vc"):
-            try:
-                await member.send(
-                    "⚠️ **ATTENZIONE**\n"
-                    "Sei entrato in una **vocale staff** ma **NON sei in servizio**.\n\n"
-                    "👉 Usa `!servizio on` o il **pannello servizio** per iniziare."
-                )
-            except:
-                pass
-
-            dati["avviso_vc"] = True
-            save_staff()
-
-        return  # BLOCCA QUALSIASI CONTEGGIO
-
-    # ===== DA QUI IN POI: SOLO SE IN SERVIZIO =====
     if not dati or not dati.get("inizio"):
         return
 
     now = time.time()
 
-    # ===== USCITA DA VC =====
-    if (
-        before.channel
-        and before.channel.id in VC_CHANNEL_IDS
-        and (not after.channel or after.channel.id != before.channel.id)
-    ):
+    before_id = before.channel.id if before.channel else None
+    after_id = after.channel.id if after.channel else None
+
+    # ===== USCITA DA VC STAFF =====
+    if before_id in VC_CHANNEL_IDS and after_id != before_id:
         inizio = dati.get("vc_inizio")
         if inizio:
             dati["vc_minuti"] += int(now - inizio)
             dati["vc_inizio"] = None
 
-    # ===== ENTRATA IN VC =====
-    if (
-        after.channel
-        and after.channel.id in VC_CHANNEL_IDS
-        and not dati.get("vc_inizio")
-    ):
-        dati["vc_inizio"] = now
+    # ===== ENTRATA IN VC STAFF =====
+    if after_id in VC_CHANNEL_IDS and before_id != after_id:
+        if not dati.get("vc_inizio"):
+            dati["vc_inizio"] = now
 
     save_staff()
+
+
+
 
 
 
