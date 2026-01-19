@@ -7,6 +7,22 @@ from datetime import timedelta
 from datetime import datetime
 import os
 
+RANK_STEPS = [
+    (0, "🔰 Nuovo Staff"),
+    (5 * 3600, "⭐ Staff Intraprendente"),
+    (10 * 3600, "🎖 Staff Attivo"),
+    (30 * 3600, "🥉 Staff Avanzato"),
+    (60 * 3600, "🥈 Staff Da esempio"),
+    (100 * 3600, "🥇 Staff Esperto"),
+    (250 * 3600, "🏆 Staff Unico"),
+    (300 * 3600, "🏆 Staff Unico II"),
+    (350 * 3600, "✨ Staff Galaxy"),
+    (450 * 3600, "🌠 Staff Galattico"),
+    (550 * 3600, "👑 Staff Principale del Server"),
+    (1000 * 3600, "🌌 Staff Universale")
+]
+
+
 # ================== PATH DATI ==================
 DATA_DIR = "data"
 STAFF_FILE = os.path.join(DATA_DIR, "staff_hours.json")
@@ -147,63 +163,34 @@ def is_allowed_time():
 
 # ================= RANK =================
 def get_rank(seconds):
-    if seconds >= 1000 * 3600:
-        return "🌌 Staff Universale"
-    elif seconds >= 550 * 3600:
-        return "👑 Staff Principale del Server"
-    elif seconds >= 450 * 3600:
-        return "🌠 Staff Galattico"
-    elif seconds >= 350 * 3600:
-        return "✨ Staff Galaxy"
-    elif seconds >= 300 * 3600:
-        return "🏆 Staff Unico II"
-    elif seconds >= 250 * 3600:
-        return "🏆 Staff Unico"
-    elif seconds >= 100 * 3600:
-        return "🥇 Staff Esperto"
-    elif seconds >= 60 * 3600:
-        return "🥈 Staff Da esempio"
-    elif seconds >= 30 * 3600:
-        return "🥉 Staff Avanzato"
-    elif seconds >= 10 * 3600:
-        return "🎖 Staff Attivo"
-    elif seconds >= 5 * 3600:
-        return "⭐ Staff Intraprendente"
-    else:
-        return "🔰 Nuovo Staff"
+    current_rank = RANK_STEPS[0][1]
+
+    for threshold, name in RANK_STEPS:
+        if seconds >= threshold:
+            current_rank = name
+        else:
+            break
+
+    return current_rank
+
 
 
 
 def rank_progress_bar(seconds):
-    rank_steps = [
-        (0, "🔰 Nuovo Staff"),
-        (5 * 3600, "⭐ Staff Intraprendente"),
-        (10 * 3600, "🎖 Staff Attivo"),
-        (30 * 3600, "🥉 Staff Avanzato"),
-        (60 * 3600, "🥈 Staff Da esempio"),
-        (100 * 3600, "🥇 Staff Esperto"),
-        (250 * 3600, "🏆 Staff Unico"),
-        (300 * 3600, "🏆 Staff Unico II"),
-        (350 * 3600, "✨ Staff Galaxy"),
-        (450 * 3600, "🌠 Staff Galattico"),
-        (550 * 3600, "👑 Staff Principale del Server"),
-        (1000 * 3600, "🌌 Staff Universale")
-    ]
-
-    current_rank = rank_steps[0][1]
-    current_threshold = 0
+    current_rank = RANK_STEPS[0][1]
+    current_threshold = RANK_STEPS[0][0]
     next_threshold = None
 
-    for i, (threshold, name) in enumerate(rank_steps):
+    for i, (threshold, name) in enumerate(RANK_STEPS):
         if seconds >= threshold:
             current_rank = name
             current_threshold = threshold
-            if i + 1 < len(rank_steps):
-                next_threshold = rank_steps[i + 1][0]
+            if i + 1 < len(RANK_STEPS):
+                next_threshold = RANK_STEPS[i + 1][0]
         else:
             break
 
-    # Rank massimo (Staff Universale)
+    # Rank massimo
     if next_threshold is None:
         barra = "🟦" * 20
         return current_rank, barra, 0
@@ -214,9 +201,9 @@ def rank_progress_bar(seconds):
     filled = int(progress * 20)
     barra = "🟦" * filled + "⬜" * (20 - filled)
 
-    ore_mancanti = next_threshold - seconds
+    mancanti = next_threshold - seconds
+    return current_rank, barra, mancanti
 
-    return current_rank, barra, ore_mancanti
 
 
 
@@ -645,19 +632,20 @@ class ServizioView(discord.ui.View):
 
         rank, barra, mancanti = rank_progress_bar(staff_data[uid]["totale"])
 
+        if mancanti == 0:
+            progresso_text = "🏆 **Hai raggiunto il rank massimo!**"
+        else:
+            progresso_text = f"⏳ **Ore al prossimo rank:** {format_time(mancanti)}"
+
         await interaction.response.send_message(
             f"🔴 **Sei uscito dal servizio**\n\n"
             f"⏱ **Durata sessione:** {durata_sessione_str}\n"
             f"⏱ **Ore totali:** {totale_str}\n"
             f"🏅 **Rank attuale:** {rank}\n\n"
             f"{barra}\n"
-            f"⏳ **Ore al prossimo rank:** {format_time(mancanti)}",
+            f"{progresso_text}",
             ephemeral=True
         )
-
-
-
-
 
 
 @bot.command()
@@ -743,17 +731,6 @@ async def reportstaffgrafico(ctx):
     if not ruolo_staff:
         return await ctx.send("❌ Ruolo staff non trovato")
 
-    # Definizione step ore per rank
-    rank_steps = [
-        (0, "🔰 Nuovo Staff"),
-        (5*3600, "⭐ Staff Intraprendente"),
-        (10*3600, "🎖 Staff Attivo"),
-        (30*3600, "🥉 Staff Avanzato"),
-        (60*3600, "🥈 Staff Da esempio"),
-        (100*3600, "🥇 Staff Esperto"),
-        (250*3600, "🏆 Staff Unico")
-    ]
-
     embed = discord.Embed(
         title="📊 Report Staff Ombra del 130",
         description="Ecco le ore e i rank di tutto lo staff con progresso verso il prossimo rank!",
@@ -765,44 +742,27 @@ async def reportstaffgrafico(ctx):
         uid = str(membro.id)
         totale = staff_data.get(uid, {}).get("totale", 0)
 
-        # Trova rank attuale e prossimo
-        current_rank = rank_steps[0][1]
-        next_rank_hours = None
-        for i, (ore, nome) in enumerate(rank_steps):
-            if totale >= ore:
-                current_rank = nome
-                if i+1 < len(rank_steps):
-                    next_rank_hours = rank_steps[i+1][0]
-                else:
-                    next_rank_hours = ore  # massimo raggiunto
+        rank, barra, mancanti = rank_progress_bar(totale)
 
-        # Calcolo progresso verso il prossimo rank
-        if next_rank_hours and next_rank_hours != totale:
-            progress = totale / next_rank_hours
+        if mancanti == 0:
+            progresso = "🏆 Rank massimo raggiunto"
         else:
-            progress = 1
-
-        bar_total = 20
-        filled = int(progress * bar_total)
-        empty = bar_total - filled
-        barra = "🟦" * filled + "⬜" * empty
-
-        # Ore mancanti al prossimo rank
-        ore_mancanti = max(0, next_rank_hours - totale) if next_rank_hours != totale else 0
+            progresso = f"⏳ Ore al prossimo rank: **{format_time(mancanti)}**"
 
         embed.add_field(
             name=f"👤 {membro.display_name}",
             value=(
-                f"🏅 Rank attuale: **{current_rank}**\n"
+                f"🏅 Rank: **{rank}**\n"
                 f"⏱ Ore totali: **{format_time(totale)}**\n"
                 f"{barra}\n"
-                f"⏳ Ore al prossimo rank: **{format_time(ore_mancanti)}**"
+                f"{progresso}"
             ),
             inline=False
         )
 
-    embed.set_footer(text="💡 Comando eseguibile solo da Owner o Direttore, ma visibile a tutti")
+    embed.set_footer(text="💡 Comando eseguibile solo da Owner o Direttore")
     await ctx.send(embed=embed)
+
 
     # -------------------- CLASSIFICA NEL CANALE GENERALE -------------------------------
 @bot.command()
