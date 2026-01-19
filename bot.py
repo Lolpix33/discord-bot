@@ -932,7 +932,6 @@ async def on_ready():
 
     print(f"🤖 {bot.user} ONLINE nel server autorizzato")
 
-    # Avvio loop solo se non già partiti
     if not promozione_youtube.is_running():
         promozione_youtube.start()
 
@@ -944,6 +943,10 @@ async def on_ready():
 
     if not vc_heartbeat.is_running():
         vc_heartbeat.start()
+
+    # 🔥 QUESTA È LA RIGA CHE SISTEMA TUTTO
+    await vetrina_rank_staff()
+
 
 
 
