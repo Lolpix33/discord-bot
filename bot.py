@@ -177,23 +177,22 @@ def get_rank(seconds):
 
 
 def rank_progress_bar(seconds):
-    current_rank = RANK_STEPS[0][1]
-    current_threshold = RANK_STEPS[0][0]
-    next_threshold = None
-
-    for i, (threshold, name) in enumerate(RANK_STEPS):
-        if seconds >= threshold:
-            current_rank = name
-            current_threshold = threshold
-            if i + 1 < len(RANK_STEPS):
-                next_threshold = RANK_STEPS[i + 1][0]
-        else:
-            break
+    steps = RANK_STEPS
 
     # Rank massimo
-    if next_threshold is None:
-        barra = "🟦" * 20
-        return current_rank, barra, 0
+    if seconds >= steps[-1][0]:
+        return steps[-1][1], "🟦" * 20, 0
+
+    current_rank = steps[0][1]
+    current_threshold = steps[0][0]
+    next_threshold = steps[1][0]
+
+    for i in range(len(steps) - 1):
+        if steps[i][0] <= seconds < steps[i + 1][0]:
+            current_rank = steps[i][1]
+            current_threshold = steps[i][0]
+            next_threshold = steps[i + 1][0]
+            break
 
     progress = (seconds - current_threshold) / (next_threshold - current_threshold)
     progress = max(0, min(progress, 1))
@@ -201,8 +200,9 @@ def rank_progress_bar(seconds):
     filled = int(progress * 20)
     barra = "🟦" * filled + "⬜" * (20 - filled)
 
-    mancanti = next_threshold - seconds
+    mancanti = max(0, next_threshold - seconds)
     return current_rank, barra, mancanti
+
 
 
 
