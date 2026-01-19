@@ -926,6 +926,22 @@ async def vetrina_rank_staff():
     embed.set_footer(text="💎 Diventa uno degli staff più attivi!")
     await channel.send(embed=embed)
 
+@tasks.loop(minutes=1)
+async def vc_heartbeat():
+    now = time.time()
+
+    for uid, dati in staff_data.items():
+        if not dati.get("inizio"):
+            continue
+
+        vc_start = dati.get("vc_inizio")
+        if vc_start:
+            dati["vc_minuti"] += int(now - vc_start)
+            dati["vc_inizio"] = now
+
+    save_staff()
+
+
 # ================= ON READY =================
 
 @bot.event
@@ -948,6 +964,11 @@ async def on_ready():
 
     if not vetrina_rank_staff.is_running():
         vetrina_rank_staff.start()
+
+    if not vc_heartbeat.is_running():
+        vc_heartbeat.start()
+
+
 
 
 # ================= ON_MESSAGE =================
