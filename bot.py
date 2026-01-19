@@ -71,6 +71,7 @@ ADV_MOD_ROLE_ID = 1399839659961618513   # Ruolo che può usare DM / DM RUOLO
 SERVICE_ROLE_ID = 1450228259018113187   # Ruolo staff
 ORESTAFF_ROLE_ID = 1426308704759976108 # Ruolo che può usare !orestaff
 DIRETTORE_ROLE_ID = 1426308704759976108 # Ruolo Direttore (aggiunto)
+MANAGER_ID = 1459987923020677437
 
 # Ruoli che possono gestire i punti (Service + Addetto Punti + Direttore)
 GESTORE_PUNTI_ROLE_IDS = [
@@ -79,23 +80,42 @@ GESTORE_PUNTI_ROLE_IDS = [
     DIRETTORE_ROLE_ID
 ]
 
+
 STAFF_CHANNEL_ID = 1399142358116995173  # Log DM
 SERVICE_CHANNEL_ID = 1450225638224171090 # Log servizio
 GENERAL_CHANNEL_ID = 1385409744444981389 # Generale per messaggi automatici
 PROMO_CHANNEL_ID = 1385409744444981389  # Canale per messaggi YouTube
 STAFF_REMINDER_CHANNEL_ID = 1399142358116995173 # Canale promemoria staff
 PUNISH_LOG_CHANNEL_ID = STAFF_CHANNEL_ID  # usa il log staff che già hai
-VC_CHANNEL_IDS = [1278033707457843320, 1278033707457843319, 1453555421691379796, 1398840059846856804, 1451579486477877268, 1454875006692626454, 1454209806134022321, 1455658052437934222, 1387804408917790800] #
+VC_CHANNEL_IDS = [
+    1382496983713054790,
+    1462108888945131753,
+    1278033707457843319,
+    1462928920000069732,
+    1462929261777387552,
+    1462929311412523038,
+    1453555421691379796,
+    1451579486477877268,
+    1398840059846856804,
+    1462930074637701180,
+    1462930048398131281,
+    1462930024926810286,
+    1462927348587302962,
+    1462927312046653651,
+    1462927204089466901,
+    1462927098296537211,
+    1462927527235420353,
+    1278033707457843320,
+    1454875006692626454,
+    1454209806134022321,
+    1455658052437934222,
+    1387804408917790800,
+] #
 
 
 DATA_FILE = "staff_hours.json"
 YOUTUBE_LINK = "https://www.youtube.com/@Ombra130"
 # ==========================================
-
-intents = discord.Intents.default()
-intents.message_content = True
-intents.members = True
-bot = commands.Bot(command_prefix=PREFIX, intents=intents)
 
 MAIN_GUILD_ID = 1278033707457843314  # ID del tuo server
 
@@ -142,16 +162,58 @@ def get_rank(hours):
     else:
         return "🔰 Nuovo Staff"
 
+
+def rank_progress_bar(seconds):
+    rank_steps = [
+        (0, "🔰 Nuovo Staff"),
+        (5*3600, "⭐ Staff Intraprendente"),
+        (10*3600, "🎖 Staff Attivo"),
+        (30*3600, "🥉 Staff Avanzato"),
+        (60*3600, "🥈 Staff Da esempio"),
+        (100*3600, "🥇 Staff Esperto"),
+        (250*3600, "🏆 Staff Unico")
+    ]
+
+    current_rank = rank_steps[0][1]
+    current_threshold = 0
+    next_threshold = None
+
+    for i, (ore, nome) in enumerate(rank_steps):
+        if seconds >= ore:
+            current_rank = nome
+            current_threshold = ore
+            if i + 1 < len(rank_steps):
+                next_threshold = rank_steps[i + 1][0]
+        else:
+            break
+
+    # Rank massimo
+    if next_threshold is None:
+        barra = "🟦" * 20
+        return current_rank, barra, 0
+
+    progresso = (seconds - current_threshold) / (next_threshold - current_threshold)
+    progresso = max(0, min(progresso, 1))
+
+    filled = int(progresso * 20)
+    barra = "🟦" * filled + "⬜" * (20 - filled)
+
+    ore_mancanti = next_threshold - seconds
+
+    return current_rank, barra, ore_mancanti
+
+
 # ================= PERMESSI =================
-DIRETTORE_ROLE_ID = 1426308704759976108
 
 def owner_or_direttore_check():
     async def predicate(ctx):
         return (
             ctx.author.id == ctx.guild.owner_id or
+            ctx.author.id == MANAGER_ID or
             any(r.id == DIRETTORE_ROLE_ID for r in ctx.author.roles)
         )
     return commands.check(predicate)
+
 
 def dm_check():
     async def predicate(ctx):
@@ -370,8 +432,12 @@ async def servizio(ctx, stato: str):
     "messaggi": 0,
     "comandi": 0,
     "dm_gestiti": 0,
-    "vc_minuti": 0
+    "vc_minuti": 0,
+    "vc_inizio": None,
+    "avviso_vc": False
+
 })
+
 
     channel = bot.get_channel(SERVICE_CHANNEL_ID)
 
@@ -379,6 +445,8 @@ async def servizio(ctx, stato: str):
         if staff_data[uid]["inizio"]:
             return await ctx.reply("⚠️ Sei già in servizio")
         staff_data[uid]["inizio"] = now
+        staff_data[uid]["vc_inizio"] = None
+        staff_data[uid]["avviso_vc"] = False # Aggiunto
         save_staff()
         embed = discord.Embed(
             title="🟢 ENTRATA IN SERVIZIO",
@@ -395,6 +463,8 @@ async def servizio(ctx, stato: str):
         staff_data[uid]["totale"] += durata
         staff_data[uid]["inizio"] = None
         save_staff()
+        start_timestamp = int(now)
+
 
         rank = get_rank(staff_data[uid]["totale"])
         embed = discord.Embed(
@@ -423,27 +493,57 @@ class ServizioView(discord.ui.View):
     async def servizio_on(self, interaction: discord.Interaction, button: discord.ui.Button):
         uid = str(interaction.user.id)
         now = time.time()
+        start_timestamp = int(now)
+
+
+        def default_staff():
+            return {
+                "totale": 0,
+                "inizio": None,
+                "pausa": False,
+                "messaggi": 0,
+                "comandi": 0,
+                "dm_gestiti": 0,
+                "vc_minuti": 0,
+                "vc_inizio": None,
+                "avviso_vc": False
+            }
+
+
 
         staff_data.setdefault(uid, {
             "totale": 0,
             "inizio": None,
+            "pausa": False,
             "messaggi": 0,
             "comandi": 0,
             "dm_gestiti": 0,
-            "vc_minuti": 0
+            "vc_minuti": 0,
+            "vc_inizio": None,
+            "avviso_vc": False
         })
 
         if staff_data[uid]["inizio"] is not None:
             return await interaction.response.send_message("⚠️ Sei già in servizio", ephemeral=True)
 
         staff_data[uid]["inizio"] = now
+        staff_data[uid]["vc_inizio"] = None
+        staff_data[uid]["avviso_vc"] = False
         save_staff()
+
+
 
         embed = discord.Embed(
             title="🟢 Entrata in servizio",
             description=f"👮 {interaction.user.mention} è entrato in servizio",
             color=discord.Color.green(),
             timestamp=discord.utils.utcnow()
+        )
+
+        embed.add_field(
+            name="⏱ Inizio servizio",
+            value=f"<t:{start_timestamp}:R>",
+            inline=False
         )
 
         # Notifica Owner
@@ -488,7 +588,9 @@ class ServizioView(discord.ui.View):
         # Reset variabili temporanee
         staff_data[uid]["inizio"] = None
         staff_data[uid]["pausa"] = False
+        staff_data[uid]["vc_inizio"] = None  # 🔴 RESET VC OBBLIGATORIO
         save_staff()
+
 
         # Embed di log
         embed = discord.Embed(
@@ -525,15 +627,19 @@ class ServizioView(discord.ui.View):
 
         durata_sessione_str = format_time(durata_sessione)
         totale_str = format_time(staff_data[uid]["totale"])
-        rank_attuale = get_rank(staff_data[uid]["totale"])
+
+        rank, barra, mancanti = rank_progress_bar(staff_data[uid]["totale"])
 
         await interaction.response.send_message(
             f"🔴 **Sei uscito dal servizio**\n\n"
             f"⏱ **Durata sessione:** {durata_sessione_str}\n"
             f"⏱ **Ore totali:** {totale_str}\n"
-            f"🏅 **Rank attuale:** {rank_attuale}",
+            f"🏅 **Rank attuale:** {rank}\n\n"
+            f"{barra}\n"
+            f"⏳ **Ore al prossimo rank:** {format_time(mancanti)}",
             ephemeral=True
         )
+
 
 
 
@@ -905,26 +1011,72 @@ async def on_voice_state_update(member, before, after):
 
     uid = str(member.id)
     dati = staff_data.get(uid)
-    if not dati:
+
+    # ===== AVVISO SE ENTRA IN VC SENZA SERVIZIO =====
+    if (
+        after.channel
+        and after.channel.id in VC_CHANNEL_IDS
+        and (not dati or not dati.get("inizio"))
+    ):
+        # inizializza se non esiste
+        if not dati:
+            staff_data[uid] = {
+                "totale": 0,
+                "inizio": None,
+                "pausa": False,
+                "messaggi": 0,
+                "comandi": 0,
+                "dm_gestiti": 0,
+                "vc_minuti": 0,
+                "vc_inizio": None,
+                "avviso_vc": False
+            }
+            dati = staff_data[uid]
+
+        if not dati.get("avviso_vc"):
+            try:
+                await member.send(
+                    "⚠️ **ATTENZIONE**\n"
+                    "Sei entrato in una **vocale staff** ma **NON sei in servizio**.\n\n"
+                    "👉 Usa `!servizio on` o il **pannello servizio** per iniziare."
+                )
+            except:
+                pass
+
+            dati["avviso_vc"] = True
+            save_staff()
+
+        return  # BLOCCA QUALSIASI CONTEGGIO
+
+    # ===== DA QUI IN POI: SOLO SE IN SERVIZIO =====
+    if not dati or not dati.get("inizio"):
         return
 
     now = time.time()
 
-    # ---------- ENTRATA CANALE VOCE ----------
-    if after.channel and after.channel.id in VC_CHANNEL_IDS:
-        if not before.channel or before.channel.id != after.channel.id:
-            dati["vc_inizio"] = now
+    # ===== USCITA DA VC =====
+    if (
+        before.channel
+        and before.channel.id in VC_CHANNEL_IDS
+        and (not after.channel or after.channel.id != before.channel.id)
+    ):
+        inizio = dati.get("vc_inizio")
+        if inizio:
+            dati["vc_minuti"] += int(now - inizio)
+            dati["vc_inizio"] = None
 
-    # ---------- USCITA CANALE VOCE ----------
-    if before.channel and before.channel.id in VC_CHANNEL_IDS:
-        if not after.channel or after.channel.id != before.channel.id:
-            inizio = dati.get("vc_inizio")
-            if inizio:
-                durata = now - inizio       # durata in secondi
-                dati["vc_minuti"] += durata # qui salviamo i secondi
-                dati["vc_inizio"] = None
+    # ===== ENTRATA IN VC =====
+    if (
+        after.channel
+        and after.channel.id in VC_CHANNEL_IDS
+        and not dati.get("vc_inizio")
+    ):
+        dati["vc_inizio"] = now
 
     save_staff()
+
+
+
 
 
 
