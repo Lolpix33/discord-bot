@@ -146,61 +146,78 @@ def is_allowed_time():
     return False
 
 # ================= RANK =================
-def get_rank(hours):
-    if hours >= 250*3600:
+def get_rank(seconds):
+    if seconds >= 1000 * 3600:
+        return "🌌 Staff Universale"
+    elif seconds >= 550 * 3600:
+        return "👑 Staff Principale del Server"
+    elif seconds >= 450 * 3600:
+        return "🌠 Staff Galattico"
+    elif seconds >= 350 * 3600:
+        return "✨ Staff Galaxy"
+    elif seconds >= 300 * 3600:
+        return "🏆 Staff Unico II"
+    elif seconds >= 250 * 3600:
         return "🏆 Staff Unico"
-    elif hours >= 100*3600:
+    elif seconds >= 100 * 3600:
         return "🥇 Staff Esperto"
-    elif hours >= 60*3600:
+    elif seconds >= 60 * 3600:
         return "🥈 Staff Da esempio"
-    elif hours >= 30*3600:
+    elif seconds >= 30 * 3600:
         return "🥉 Staff Avanzato"
-    elif hours >= 10*3600:
+    elif seconds >= 10 * 3600:
         return "🎖 Staff Attivo"
-    elif hours >= 5*3600:
+    elif seconds >= 5 * 3600:
         return "⭐ Staff Intraprendente"
     else:
         return "🔰 Nuovo Staff"
 
 
+
 def rank_progress_bar(seconds):
     rank_steps = [
         (0, "🔰 Nuovo Staff"),
-        (5*3600, "⭐ Staff Intraprendente"),
-        (10*3600, "🎖 Staff Attivo"),
-        (30*3600, "🥉 Staff Avanzato"),
-        (60*3600, "🥈 Staff Da esempio"),
-        (100*3600, "🥇 Staff Esperto"),
-        (250*3600, "🏆 Staff Unico")
+        (5 * 3600, "⭐ Staff Intraprendente"),
+        (10 * 3600, "🎖 Staff Attivo"),
+        (30 * 3600, "🥉 Staff Avanzato"),
+        (60 * 3600, "🥈 Staff Da esempio"),
+        (100 * 3600, "🥇 Staff Esperto"),
+        (250 * 3600, "🏆 Staff Unico"),
+        (300 * 3600, "🏆 Staff Unico II"),
+        (350 * 3600, "✨ Staff Galaxy"),
+        (450 * 3600, "🌠 Staff Galattico"),
+        (550 * 3600, "👑 Staff Principale del Server"),
+        (1000 * 3600, "🌌 Staff Universale")
     ]
 
     current_rank = rank_steps[0][1]
     current_threshold = 0
     next_threshold = None
 
-    for i, (ore, nome) in enumerate(rank_steps):
-        if seconds >= ore:
-            current_rank = nome
-            current_threshold = ore
+    for i, (threshold, name) in enumerate(rank_steps):
+        if seconds >= threshold:
+            current_rank = name
+            current_threshold = threshold
             if i + 1 < len(rank_steps):
                 next_threshold = rank_steps[i + 1][0]
         else:
             break
 
-    # Rank massimo
+    # Rank massimo (Staff Universale)
     if next_threshold is None:
         barra = "🟦" * 20
         return current_rank, barra, 0
 
-    progresso = (seconds - current_threshold) / (next_threshold - current_threshold)
-    progresso = max(0, min(progresso, 1))
+    progress = (seconds - current_threshold) / (next_threshold - current_threshold)
+    progress = max(0, min(progress, 1))
 
-    filled = int(progresso * 20)
+    filled = int(progress * 20)
     barra = "🟦" * filled + "⬜" * (20 - filled)
 
     ore_mancanti = next_threshold - seconds
 
     return current_rank, barra, ore_mancanti
+
 
 
 # ================= PERMESSI =================
