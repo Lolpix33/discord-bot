@@ -2,7 +2,6 @@ import discord
 from discord.ext import commands, tasks
 import json
 import time
-import random
 from datetime import timedelta
 from datetime import datetime
 import os
@@ -31,11 +30,6 @@ PUNTI_FILE = os.path.join(DATA_DIR, "punti.json")
 os.makedirs(DATA_DIR, exist_ok=True)
 
 # ================== STAFF DATA ==================
-if os.path.exists(STAFF_FILE):
-    with open(STAFF_FILE, "r") as f:
-        staff_data = json.load(f)
-else:
-    staff_data = {}
 
 def save_staff():
     with open(STAFF_FILE, "w") as f:
@@ -149,7 +143,7 @@ def format_time(seconds):
     return str(timedelta(seconds=int(seconds)))
 
 def is_allowed_time():
-    """
+    """a
     Permette invio messaggi SOLO dalle 10:00 alle 01:00
     """
     now = datetime.now().time()
@@ -857,22 +851,15 @@ async def promemoria_staff():
         text="💡 Ricorda di metterti in servizio se disponibile e per raggiungere le ore minime settimanali"
     )
     await channel.send(f"{ruolo_staff.mention}", embed=embed)
-
-@tasks.loop(minutes=210)  # 3 ore e mezza
-async def vetrina_rank_staff():
-    now = datetime.now().time()
-    start_time = datetime.strptime("12:00", "%H:%M").time()
-    end_time = datetime.strptime("23:00", "%H:%M").time()
-
-    # Controllo orario
-    if not (start_time <= now <= end_time):
-        return  # esce se siamo fuori dall'orario 12:00-23:00
-
+async def invia_classifica_staff():
     channel = bot.get_channel(PROMO_CHANNEL_ID)
     if not channel:
         return
 
-    guild = bot.guilds[0]
+    guild = bot.get_guild(MAIN_GUILD_ID)
+    if not guild:
+        return
+
     ruolo_staff = guild.get_role(SERVICE_ROLE_ID)
     if not ruolo_staff:
         return
@@ -900,8 +887,20 @@ async def vetrina_rank_staff():
             inline=False
         )
 
-    embed.set_footer(text="💎 Diventa uno degli staff più attivi!")
     await channel.send(embed=embed)
+
+
+@tasks.loop(minutes=210)
+async def vetrina_rank_staff():
+    now = datetime.now().time()
+    start_time = datetime.strptime("12:00", "%H:%M").time()
+    end_time = datetime.strptime("23:00", "%H:%M").time()
+
+    if not (start_time <= now <= end_time):
+        return
+
+    await invia_classifica_staff()
+
 
 @tasks.loop(minutes=1)
 async def vc_heartbeat():
@@ -945,7 +944,8 @@ async def on_ready():
         vc_heartbeat.start()
 
     # 🔥 QUESTA È LA RIGA CHE SISTEMA TUTTO
-    await vetrina_rank_staff()
+    await invia_classifica_staff()
+
 
 
 
