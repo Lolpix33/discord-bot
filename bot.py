@@ -588,26 +588,24 @@ class ServizioView(discord.ui.View):
         if uid not in staff_data or staff_data[uid]["inizio"] is None:
             return await interaction.response.send_message("⚠️ Non sei in servizio", ephemeral=True)
 
-        # Calcola durata sessione in secondi
+        # Calcola durata sessione
         inizio_sessione = staff_data[uid]["inizio"]
         durata_sessione = now - inizio_sessione
         staff_data[uid]["totale"] += durata_sessione
 
-        # ---------- CALCOLO VOCE ----------
+        # ---------- CALCOLO VC ----------
         inizio_vc = staff_data[uid].get("vc_inizio")
         if inizio_vc:
-            durata_vc = now - inizio_vc          # durata in secondi
-            staff_data[uid]["vc_minuti"] += int(durata_vc)  # sommo i secondi
+            staff_data[uid]["vc_minuti"] += int(now - inizio_vc)
             staff_data[uid]["vc_inizio"] = None
 
-        # Reset variabili temporanee
+        # Reset stato
         staff_data[uid]["inizio"] = None
         staff_data[uid]["pausa"] = False
-        staff_data[uid]["vc_inizio"] = None  # 🔴 RESET VC OBBLIGATORIO
+        staff_data[uid]["vc_inizio"] = None
         save_staff()
 
-
-        # Embed di log
+        # ---------- EMBED ----------
         embed = discord.Embed(
             title=f"🔴 {interaction.user.display_name} è uscito dal servizio",
             description=(
@@ -625,13 +623,15 @@ class ServizioView(discord.ui.View):
             timestamp=discord.utils.utcnow()
         )
 
-        # Notifica Owner
+        # ================= NOTIFICHE =================
+
+        # Owner
         try:
             await interaction.guild.owner.send(embed=embed)
         except:
             pass
 
-        # Notifica Direttore
+        # Direttore
         direttore_role = interaction.guild.get_role(DIRETTORE_ROLE_ID)
         if direttore_role:
             for membro in direttore_role.members:
@@ -640,25 +640,33 @@ class ServizioView(discord.ui.View):
                 except:
                     pass
 
-        durata_sessione_str = format_time(durata_sessione)
-        totale_str = format_time(staff_data[uid]["totale"])
+        # Manager
+        try:
+            manager = interaction.guild.get_member(MANAGER_ID)
+            if manager:
+                await manager.send(embed=embed)
+        except:
+            pass
 
+        # ---------- RISPOSTA ALL'UTENTE ----------
         rank, barra, mancanti = rank_progress_bar(staff_data[uid]["totale"])
 
-        if mancanti == 0:
-            progresso_text = "🏆 **Hai raggiunto il rank massimo!**"
-        else:
-            progresso_text = f"⏳ **Ore al prossimo rank:** {format_time(mancanti)}"
+        progresso_text = (
+            "🏆 **Hai raggiunto il rank massimo!**"
+            if mancanti == 0
+            else f"⏳ **Ore al prossimo rank:** {format_time(mancanti)}"
+        )
 
         await interaction.response.send_message(
             f"🔴 **Sei uscito dal servizio**\n\n"
-            f"⏱ **Durata sessione:** {durata_sessione_str}\n"
-            f"⏱ **Ore totali:** {totale_str}\n"
+            f"⏱ **Durata sessione:** {format_time(durata_sessione)}\n"
+            f"⏱ **Ore totali:** {format_time(staff_data[uid]['totale'])}\n"
             f"🏅 **Rank attuale:** {rank}\n\n"
             f"{barra}\n"
             f"{progresso_text}",
             ephemeral=True
         )
+
 
 
 @bot.command()
