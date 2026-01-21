@@ -81,7 +81,6 @@ ADV_MOD_ROLE_ID = 1399839659961618513   # Ruolo che può usare DM / DM RUOLO
 SERVICE_ROLE_ID = 1450228259018113187   # Ruolo staff
 ORESTAFF_ROLE_ID = 1426308704759976108 # Ruolo che può usare !orestaff
 DIRETTORE_ROLE_ID = 1426308704759976108 # Ruolo Direttore (aggiunto)
-MANAGER_ID = 1459987923020677437
 MODERATORI_ROLE_ID = 1382480385371537479
 MODERATORI_AVANZATI_ROLE_ID = 1463517577111277813
 ADMIN_ROLE_ID = 1462826237499277476
@@ -624,11 +623,6 @@ class ServizioView(discord.ui.View):
         )
 
         # ================= NOTIFICHE =================
-
-        # Owner
-        # ================= NOTIFICHE =================
-
-# Owner
         try:
             await interaction.guild.owner.send(embed=embed)
         except:
@@ -644,11 +638,13 @@ class ServizioView(discord.ui.View):
                     pass
 
         # Manager (FETCH CORRETTO)
+        # Manager (DEBUG DM)
         try:
             manager = await interaction.guild.fetch_member(MANAGER_ID)
             await manager.send(embed=embed)
-        except:
-            pass
+            print("DM MANAGER INVIATO CON SUCCESSO")
+        except Exception as e:
+            print("ERRORE DM MANAGER:", e)
 
 
 
