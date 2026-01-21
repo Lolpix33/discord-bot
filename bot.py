@@ -82,6 +82,13 @@ SERVICE_ROLE_ID = 1450228259018113187   # Ruolo staff
 ORESTAFF_ROLE_ID = 1426308704759976108 # Ruolo che può usare !orestaff
 DIRETTORE_ROLE_ID = 1426308704759976108 # Ruolo Direttore (aggiunto)
 MANAGER_ID = 1459987923020677437
+MODERATORI_ROLE_ID = 1382480385371537479
+MODERATORI_AVANZATI_ROLE_ID = 1463517577111277813
+ADMIN_ROLE_ID = 1462826237499277476
+DIRETTORE_ROLE_ID = 1426308704759976108
+MANAGER_ID = 1459987923020677437
+PROPRIETARIO_ID = 1382481167894450319
+
 
 # Ruoli che possono gestire i punti (Service + Addetto Punti + Direttore)
 GESTORE_PUNTI_ROLE_IDS = [
@@ -203,20 +210,32 @@ def rank_progress_bar(seconds):
 
 # ================= PERMESSI =================
 
-def owner_or_direttore_check():
-    async def predicate(ctx):
-        return (
-            ctx.author.id == ctx.guild.owner_id or
-            ctx.author.id == MANAGER_ID or
-            any(r.id == DIRETTORE_ROLE_ID for r in ctx.author.roles)
-        )
-    return commands.check(predicate)
-
-
 def dm_check():
     async def predicate(ctx):
         return ctx.author.guild_permissions.administrator or any(
             r.id == ADV_MOD_ROLE_ID for r in ctx.author.roles
+        )
+    return commands.check(predicate)
+
+def punishment_check():
+    async def predicate(ctx):
+        return (
+            ctx.author.id in [MANAGER_ID, PROPRIETARIO_ID] or
+            ctx.author.guild_permissions.administrator or
+            any(r.id in [
+                MODERATORI_ROLE_ID,
+                MODERATORI_AVANZATI_ROLE_ID,
+                ADMIN_ROLE_ID,
+                DIRETTORE_ROLE_ID
+            ] for r in ctx.author.roles)
+        )
+    return commands.check(predicate)
+
+def owner_or_direttore_check():
+    async def predicate(ctx):
+        return (
+            ctx.author.id in [PROPRIETARIO_ID, MANAGER_ID] or
+            any(r.id == DIRETTORE_ROLE_ID for r in ctx.author.roles)
         )
     return commands.check(predicate)
 
@@ -277,7 +296,7 @@ def punishment_embed(tipo, staff, motivo, durata=None):
     return embed
 
 @bot.command()
-@dm_check()
+@punishment_check()
 async def kick(ctx, member: discord.Member, *, motivo: str):
     try:
         await member.send(
@@ -305,7 +324,7 @@ async def kick(ctx, member: discord.Member, *, motivo: str):
     await ctx.reply(f"👢 **{member} espulso correttamente**")
 
 @bot.command()
-@dm_check()
+@punishment_check()
 async def timeout(ctx, member: discord.Member, minuti: int, *, motivo: str):
     durata = timedelta(minutes=minuti)
     fine = discord.utils.utcnow() + durata
@@ -338,7 +357,7 @@ async def timeout(ctx, member: discord.Member, minuti: int, *, motivo: str):
     await ctx.reply(f"⏱ **Timeout applicato a {member} per {minuti} minuti**")
 
 @bot.command()
-@dm_check()
+@punishment_check()
 async def ban(ctx, member: discord.Member, *, motivo: str):
     try:
         await member.send(
