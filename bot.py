@@ -556,6 +556,7 @@ class ServizioView(discord.ui.View):
         )
 
         # Notifica Owner
+        # Notifica Owner
         try:
             await interaction.guild.owner.send(embed=embed)
         except:
@@ -569,6 +570,16 @@ class ServizioView(discord.ui.View):
                     await membro.send(embed=embed)
                 except:
                     pass
+
+        # 🔥 Notifica Manager (MANCAVA)
+        manager_role = interaction.guild.get_role(MANAGER_ROLE_ID)
+        if manager_role:
+            for membro in manager_role.members:
+                try:
+                    await membro.send(embed=embed)
+                except:
+                    pass
+
 
         await interaction.response.send_message(
             f"🟢 **Servizio attivato con successo**\n\n"
