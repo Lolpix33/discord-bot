@@ -623,6 +623,7 @@ class ServizioView(discord.ui.View):
         )
 
         # ================= NOTIFICHE =================
+        # Owner
         try:
             await interaction.guild.owner.send(embed=embed)
         except:
@@ -637,14 +638,17 @@ class ServizioView(discord.ui.View):
                 except:
                     pass
 
-        # Manager (FETCH CORRETTO)
-        # Manager (DEBUG DM)
-        try:
-            manager = await interaction.guild.fetch_member(MANAGER_ID)
-            await manager.send(embed=embed)
-            print("DM MANAGER INVIATO CON SUCCESSO")
-        except Exception as e:
-            print("ERRORE DM MANAGER:", e)
+        # Manager (COME DIRETTORE, A RUOLO)
+        manager_role = interaction.guild.get_role(MANAGER_ROLE_ID)
+        if manager_role:
+            for membro in manager_role.members:
+                try:
+                    await membro.send(embed=embed)
+                except:
+                    pass
+
+
+
 
 
 
