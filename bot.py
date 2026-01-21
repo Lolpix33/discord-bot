@@ -626,6 +626,9 @@ class ServizioView(discord.ui.View):
         # ================= NOTIFICHE =================
 
         # Owner
+        # ================= NOTIFICHE =================
+
+# Owner
         try:
             await interaction.guild.owner.send(embed=embed)
         except:
@@ -640,13 +643,14 @@ class ServizioView(discord.ui.View):
                 except:
                     pass
 
-        # Manager
+        # Manager (FETCH CORRETTO)
         try:
-            manager = interaction.guild.get_member(MANAGER_ID)
-            if manager:
-                await manager.send(embed=embed)
+            manager = await interaction.guild.fetch_member(MANAGER_ID)
+            await manager.send(embed=embed)
         except:
             pass
+
+
 
         # ---------- RISPOSTA ALL'UTENTE ----------
         rank, barra, mancanti = rank_progress_bar(staff_data[uid]["totale"])
