@@ -136,14 +136,6 @@ YOUTUBE_LINK = "https://www.youtube.com/@Ombra130"
 
 MAIN_GUILD_ID = 1278033707457843314  # ID del tuo server
 
-@bot.check
-async def server_lock(ctx):
-    # Blocca SOLO i DM
-    if ctx.guild is None:
-        return False
-
-    # Permette solo nel server principale
-    return ctx.guild.id == MAIN_GUILD_ID
 
 
 
@@ -238,11 +230,18 @@ def punishment_check():
 def owner_or_direttore_check():
     async def predicate(ctx):
         return (
+            ctx.author.guild_permissions.administrator or
             ctx.author.id == PROPRIETARIO_ID or
-            any(r.id == DIRETTORE_ROLE_ID for r in ctx.author.roles) or
-            any(r.id == MANAGER_ROLE_ID for r in ctx.author.roles)
+            any(r.id in [DIRETTORE_ROLE_ID, MANAGER_ROLE_ID] for r in ctx.author.roles)
         )
     return commands.check(predicate)
+
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, commands.CheckFailure):
+        await ctx.reply("❌ Non hai i permessi per usare questo comando.")
+
+
 
 
 def service_check():
